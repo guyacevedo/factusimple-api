@@ -1,7 +1,7 @@
-package com.factusimple.api.infrastructure.persistence;
+package com.factusimple.api.infrastructure.factus.codes;
 
-/** Códigos de retenciones (DIAN). Usar cuando InvoiceItemTax.isWithholding = true. */
-public enum WithholdingTaxCode implements DianCode {
+/** Códigos de retenciones (FACTUS). Usar cuando InvoiceItemTax.isWithholding = true. */
+public enum WithholdingTaxCode implements FactusCode {
 
     RETE_IVA("05"),
     RETE_RENTA("06"),

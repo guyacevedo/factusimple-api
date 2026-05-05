@@ -1,10 +1,9 @@
-package com.factusimple.api.infrastructure.persistence;
+package com.factusimple.api.infrastructure.factus.codes;
 
 /**
- * Códigos de impuestos (DIAN). No incluye códigos de retenciones (05/06/07);
- * para retenciones usar un enum aparte cuando se modele InvoiceItemTax.
+ * Códigos de impuestos (FACTUS).
  */
-public enum TaxCode implements DianCode {
+public enum TaxCode implements FactusCode {
 
     IVA("01"),
     CONSUMO_DEPARTAMENTAL_NOMINAL("02"),
