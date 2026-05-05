@@ -18,6 +18,8 @@ target/
 *.iws
 *.iml
 *.ipr
+.idea/
+out/
 
 ### NetBeans ###
 /nbproject/private/
@@ -31,3 +33,20 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+# --- Java & Maven ---
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+*application-local.properties
+.env
+*.pem
+*.crt
+
+# --- Sistema ---
+.DS_Store
+Thumbs.db

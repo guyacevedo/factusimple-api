@@ -2,16 +2,29 @@ name: CI - Build & Test
 
 on:
   push:
-    branches:
-      - develop
+    branches: [ develop ]
   pull_request:
-    branches:
-      - develop
-      - main
+    branches: [ develop, main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Levantamos la base de datos para los tests
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: ${{ secrets.DB_DATABASE_NAME }}
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
@@ -25,4 +38,18 @@ jobs:
           cache: maven
 
       - name: Build & Test
+        env:
+          # Spring leerá estas variables para conectarse al service container
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE_NAME: ${{ secrets.DB_DATABASE_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+          # Credenciales de la API Factus
+          FACTUS_ENDPOINT_SANDBOX: ${{ secrets.FACTUS_ENDPOINT_SANDBOX }}
+          FACTUS_USER: ${{ secrets.FACTUS_USER }}
+          FACTUS_PASSWORD: ${{ secrets.FACTUS_PASSWORD }}
+          FACTUS_CLIENT_ID: ${{ secrets.FACTUS_CLIENT_ID }}
+          FACTUS_CLIENT_SECRET: ${{ secrets.FACTUS_CLIENT_SECRET }}
         run: mvn -B clean verify
