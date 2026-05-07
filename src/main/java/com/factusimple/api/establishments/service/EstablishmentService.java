@@ -10,6 +10,8 @@ import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
 import com.factusimple.api.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +30,7 @@ public class EstablishmentService {
      * para garantizar que cada ESTABLISHMENT tenga su establecimiento en la misma transacción.
      */
     @Transactional
-    public Establishment createForUser(User user, EstablishmentRequestDto requestDto) {
+    public void createForUser(User user, EstablishmentRequestDto requestDto) {
         if (establishmentRepository.existsByUserId(user.getId())) {
             throw new ApiException(409, "El usuario ya tiene un establecimiento asociado");
         }
@@ -41,7 +43,6 @@ public class EstablishmentService {
         Establishment saved = establishmentRepository.save(establishment);
         log.info("Establishment creado: id={}, nit={}, userId={}",
                 saved.getId(), saved.getNit(), user.getId());
-        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +62,7 @@ public class EstablishmentService {
     }
 
     @Transactional
-    public EstablishmentResponseDto updateMine(UUID userId, EstablishmentRequestDto requestDto) {
+    public EstablishmentResponseDto update(UUID userId, EstablishmentRequestDto requestDto) {
         Establishment establishment = getEntityByUserId(userId);
 
         if (!establishment.getNit().equals(requestDto.getNit())
@@ -73,5 +74,13 @@ public class EstablishmentService {
         Establishment saved = establishmentRepository.save(establishment);
         log.info("Establishment actualizado: id={}", saved.getId());
         return establishmentMapper.toDto(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<EstablishmentResponseDto> listEstablishments(Pageable pageable) {
+        log.debug("List establishment esta with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+
+        return establishmentRepository.findAll(pageable)
+                .map(establishmentMapper::toDto);
     }
 }
