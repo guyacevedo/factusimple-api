@@ -7,6 +7,7 @@ import com.factusimple.api.establishments.service.EstablishmentService;
 import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
 import com.factusimple.api.infrastructure.exception.UnauthorizedException;
 import com.factusimple.api.infrastructure.factus.client.FactusAuthClient;
+import com.factusimple.api.infrastructure.factus.dto.FactusAuthResponseDto;
 import com.factusimple.api.plan.entity.Plan;
 import com.factusimple.api.plan.repository.PlanRepository;
 import com.factusimple.api.user.entity.Role;
@@ -32,7 +33,6 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PlanRepository planRepository;
     private final TokenRepository tokenRepository;
-    private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final EstablishmentService establishmentService;
@@ -80,7 +80,7 @@ public class AuthService {
         establishmentService.createForUser(savedUser, request.getEstablishment());
 
         // Obtener tokens desde Factus
-        AuthResponseDto generatedToken = factusAuthClient.generateToken();
+        FactusAuthResponseDto generatedToken = factusAuthClient.generateToken();
 
         validateFactusResponse(generatedToken);
 
@@ -93,7 +93,9 @@ public class AuthService {
         return buildLoginResponse(user, generatedToken);
     }
 
-    // Login
+    /**
+     * Inicio de sesion
+     */
     public LoginResponseDto login(LoginRequestDto request) {
 
         User user = userRepository.findByEmail(request.getEmail())
@@ -117,7 +119,7 @@ public class AuthService {
         userRepository.save(user);
 
         // Obtener tokens desde Factus
-        AuthResponseDto generatedToken = factusAuthClient.generateToken();
+        FactusAuthResponseDto generatedToken = factusAuthClient.generateToken();
 
         validateFactusResponse(generatedToken);
 
@@ -135,7 +137,7 @@ public class AuthService {
     /**
      * Renovar access token usando refresh token.
      */
-    public LoginResponseDto refreshToken(TokenRequestDto request) {
+    public LoginResponseDto refreshToken(RefreshTokenRequestDto request) {
 
         String refreshToken = request.getRefreshToken();
 
@@ -160,7 +162,7 @@ public class AuthService {
         revokeAllUserTokens(user);
 
         // Solicitar nuevos tokens a Factus
-        AuthResponseDto generatedToken = factusAuthClient.refreshToken(refreshToken);
+        FactusAuthResponseDto generatedToken = factusAuthClient.refreshToken(refreshToken);
 
         validateFactusResponse(generatedToken);
 
@@ -207,7 +209,7 @@ public class AuthService {
     /**
      * Guarda access token y refresh token.
      */
-    private void saveFactusTokens(User user, AuthResponseDto authResponse) {
+    private void saveFactusTokens(User user, FactusAuthResponseDto authResponse) {
 
         LocalDateTime accessTokenExpiresAt = LocalDateTime.now().plusSeconds(authResponse.getExpires_in());
 
@@ -237,7 +239,7 @@ public class AuthService {
     /**
      * Valida respuesta de Factus.
      */
-    private void validateFactusResponse(AuthResponseDto response) {
+    private void validateFactusResponse(FactusAuthResponseDto response) {
 
         if (response == null
                 || response.getAccess_token() == null
@@ -254,7 +256,7 @@ public class AuthService {
      */
     private LoginResponseDto buildLoginResponse(
             User user,
-            AuthResponseDto token
+            FactusAuthResponseDto token
     ) {
 
         return LoginResponseDto.builder()

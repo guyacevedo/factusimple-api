@@ -1,4 +1,4 @@
-package com.factusimple.api.auth.service;
+package com.factusimple.api.infrastructure.filter;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;

@@ -1,6 +1,6 @@
 package com.factusimple.api.infrastructure.factus.client;
 
-import com.factusimple.api.auth.dto.AuthResponseDto;
+import com.factusimple.api.infrastructure.factus.dto.FactusAuthResponseDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -30,7 +30,7 @@ public class FactusAuthClient {
     private String password;
 
 
-    public AuthResponseDto generateToken() {
+    public FactusAuthResponseDto generateToken() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
@@ -40,12 +40,12 @@ public class FactusAuthClient {
                 "&password=" + password;
 
         try {
-            AuthResponseDto response = restClient.post()
+            FactusAuthResponseDto response = restClient.post()
                     .uri(apiUrl + "/oauth/token")
                     .headers(h -> h.addAll(headers))
                     .body(requestBody)
                     .retrieve()
-                    .body(AuthResponseDto.class);
+                    .body(FactusAuthResponseDto.class);
 
             if (response != null) {
                 log.info("Token generado exitosamente para Factus");
@@ -59,7 +59,7 @@ public class FactusAuthClient {
     }
 
     // Generar Refresh Token
-    public AuthResponseDto refreshToken(String refreshToken) {
+    public FactusAuthResponseDto refreshToken(String refreshToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
@@ -68,12 +68,12 @@ public class FactusAuthClient {
                 "&refresh_token=" + refreshToken;
 
         try {
-            AuthResponseDto response = restClient.post()
+            FactusAuthResponseDto response = restClient.post()
                     .uri(apiUrl + "/oauth/token")
                     .headers(h -> h.addAll(headers))
                     .body(requestBody)
                     .retrieve()
-                    .body(AuthResponseDto.class);
+                    .body(FactusAuthResponseDto.class);
 
             if (response != null) {
                 log.info("Token refrescado exitosamente");

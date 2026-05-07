@@ -3,7 +3,7 @@ package com.factusimple.api.auth.controller;
 import com.factusimple.api.auth.dto.LoginRequestDto;
 import com.factusimple.api.auth.dto.LoginResponseDto;
 import com.factusimple.api.auth.dto.RegisterRequestDto;
-import com.factusimple.api.auth.dto.TokenRequestDto;
+import com.factusimple.api.auth.dto.RefreshTokenRequestDto;
 import com.factusimple.api.auth.service.AuthService;
 import com.factusimple.api.shared.dto.ApiResponseDto;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,7 +40,7 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponseDto<LoginResponseDto>> refreshToken(
-            @Valid @RequestBody TokenRequestDto request) {
+            @Valid @RequestBody RefreshTokenRequestDto request) {
         LoginResponseDto response = authService.refreshToken(request);
         return ResponseEntity.ok(ApiResponseDto.success("Token renovado", response));
     }

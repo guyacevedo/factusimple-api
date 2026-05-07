@@ -1,7 +1,7 @@
 package com.factusimple.api.config;
 
 import com.factusimple.api.auth.repository.TokenRepository;
-import com.factusimple.api.auth.service.TokenService;
+import com.factusimple.api.infrastructure.filter.TokenService;
 import com.factusimple.api.infrastructure.filter.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,7 +45,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, TokenService tokenService,
                                            UserDetailsService userDetailsService,
-                                           TokenRepository refreshTokenRepository) throws Exception {
+                                           TokenRepository refreshTokenRepository) {
 
         // Crear filtro inline (evita dependencia circular)
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(

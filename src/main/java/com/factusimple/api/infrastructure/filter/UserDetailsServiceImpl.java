@@ -1,4 +1,4 @@
-package com.factusimple.api.auth.service;
+package com.factusimple.api.infrastructure.filter;
 
 import com.factusimple.api.user.entity.User;
 import com.factusimple.api.user.repository.UserRepository;

@@ -2,7 +2,6 @@ package com.factusimple.api.infrastructure.filter;
 
 import com.factusimple.api.auth.entity.Token;
 import com.factusimple.api.auth.repository.TokenRepository;
-import com.factusimple.api.auth.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,10 +25,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public JwtAuthenticationFilter(TokenService tokenService,
                                    UserDetailsService userDetailsService,
-                                   TokenRepository refreshTokenRepository) {
+                                   TokenRepository tokenRepository) {
+
         this.tokenService = tokenService;
         this.userDetailsService = userDetailsService;
-        this.tokenRepository = refreshTokenRepository;
+        this.tokenRepository = tokenRepository;
     }
 
     @Override
@@ -39,62 +39,111 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         try {
-            // Extraer token JWT del header
-            String authHeader = request.getHeader("Authorization");
-            String jwt = null;
 
-            // Si el header es: "Bearer <token>"
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                jwt = authHeader.substring(7);
+            String jwt = extractJwt(request);
+
+            if (shouldSkipAuthentication(jwt)) {
+                filterChain.doFilter(request, response);
+                return;
             }
 
-            // Si aún no hay autenticación en el contexto
-            if (jwt != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            authenticate(jwt);
 
-                // Validar token
-                if (tokenService.isTokenValid(jwt)) {
-                    log.debug("Token válido, buscando en BD...");
-                    
-                    // Buscar token en la base de datos
-                    Optional<Token> tokenOpt = tokenRepository.findByToken(jwt);
-
-                    if (tokenOpt.isPresent()) {
-                        Token storedToken = tokenOpt.get();
-                        log.debug("Token encontrado en BD, validando...");
-                        
-                        if (storedToken.isValid() && storedToken.getTokenType() == Token.TokenType.ACCESS) {
-                            log.debug("Token válido en BD, cargando usuario...");
-                            
-                            // Cargar detalles del usuario
-                            UserDetails userDetails = userDetailsService.loadUserByUsername(
-                                    storedToken.getUser().getEmail()
-                            );
-
-                            // Crear token de autenticación
-                            UsernamePasswordAuthenticationToken authToken =
-                                    new UsernamePasswordAuthenticationToken(
-                                            userDetails,
-                                            null,
-                                            userDetails.getAuthorities()
-                                    );
-
-                            // Establecer en el contexto de seguridad
-                            SecurityContextHolder.getContext().setAuthentication(authToken);
-                            log.debug("Token validado para usuario: {}", storedToken.getUser().getEmail());
-                        } else {
-                            log.warn("Token encontrado pero no válido (revocado o expirado)");
-                        }
-                    } else {
-                        log.warn("Token NO encontrado en BD: {}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
-                    }
-                } else {
-                    log.warn("Token NO válido (expirado o mal formado)");
-                }
-            }
         } catch (Exception e) {
+
             log.error("Error en autenticación JWT: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Extrae el JWT del header Authorization.
+     */
+    private String extractJwt(HttpServletRequest request) {
+
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        return authHeader.substring(7);
+    }
+
+    /**
+     * Determina si debe omitirse la autenticación.
+     */
+    private boolean shouldSkipAuthentication(String jwt) {
+
+        return jwt == null
+                || SecurityContextHolder.getContext().getAuthentication() != null;
+    }
+
+    /**
+     * Procesa autenticación completa del JWT.
+     */
+    private void authenticate(String jwt) {
+
+        if (!tokenService.isTokenValid(jwt)) {
+
+            log.warn("Token NO válido (expirado o mal formado)");
+            return;
+        }
+
+        Optional<Token> tokenOpt = tokenRepository.findByToken(jwt);
+
+        if (tokenOpt.isEmpty()) {
+
+            log.warn(
+                    "Token NO encontrado en BD: {}...",
+                    jwt.substring(0, Math.min(20, jwt.length()))
+            );
+
+            return;
+        }
+
+        Token storedToken = tokenOpt.get();
+
+        if (!isAccessTokenValid(storedToken)) {
+
+            log.warn("Token encontrado pero revocado/expirado");
+            return;
+        }
+
+        setAuthentication(storedToken);
+    }
+
+    /**
+     * Valida token persistido.
+     */
+    private boolean isAccessTokenValid(Token token) {
+
+        return token.isValid()
+                && token.getTokenType() == Token.TokenType.ACCESS;
+    }
+
+    /**
+     * Establece autenticación en Spring Security.
+     */
+    private void setAuthentication(Token token) {
+
+        String email = token.getUser().getEmail();
+
+        UserDetails userDetails =
+                userDetailsService.loadUserByUsername(email);
+
+        UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities()
+                );
+
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(authToken);
+
+        log.debug("Token validado para usuario: {}", email);
     }
 }
