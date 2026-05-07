@@ -1,6 +1,9 @@
 package com.factusimple.api.product.dto;
 
 
+import com.factusimple.api.infrastructure.factus.codes.ProductStandardCode;
+import com.factusimple.api.infrastructure.factus.codes.TaxCode;
+import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,13 +31,15 @@ public class ProductRequestDto {
     private BigDecimal price;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El stock no puede ser negativo")
-    private BigDecimal stock; // actualizar cuando se hace una venta
+    private BigDecimal stock;
 
     private String unitMeasureCode;
 
-    private String standardCode; // validar
+   @ValidFactusCode(ProductStandardCode.class)
+    private String standardCode;
 
-    private String taxCode; // validar
+    @ValidFactusCode(TaxCode.class)
+    private String taxCode;
 
     private BigDecimal taxRate;
 

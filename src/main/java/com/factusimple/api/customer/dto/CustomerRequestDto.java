@@ -1,5 +1,10 @@
 package com.factusimple.api.customer.dto;
 
+import com.factusimple.api.infrastructure.factus.codes.FiscalResponsibilityCode;
+import com.factusimple.api.infrastructure.factus.codes.IdentityDocumentType;
+import com.factusimple.api.infrastructure.factus.codes.LegalOrgCode;
+import com.factusimple.api.infrastructure.factus.codes.TributeCode;
+import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -17,14 +22,16 @@ import java.math.BigDecimal;
 public class CustomerRequestDto {
 
     @NotBlank(message = "El tipo de identificación es requerido")
-    private String idTypeCode; // validar
+    @ValidFactusCode(IdentityDocumentType.class)
+    private String idTypeCode;
 
     @NotBlank(message = "La identificación es requerida")
     private String identification;
 
     private String dv;
 
-    private String legalOrgCode;        // "1" = PJ, "2" = PN - validar
+    @ValidFactusCode(LegalOrgCode.class)
+    private String legalOrgCode;
 
     private String company;             // requerido si legalOrgCode = "1"
 
@@ -42,9 +49,11 @@ public class CustomerRequestDto {
 
     private String municipalityCode;
 
-    private String tributeCode; // validar
+    @ValidFactusCode(TributeCode.class)
+    private String tributeCode;
 
-    private String fiscalResponsibility; // validar
+    @ValidFactusCode(FiscalResponsibilityCode.class)
+    private String fiscalResponsibility;
 
     private BigDecimal creditLimit;
 

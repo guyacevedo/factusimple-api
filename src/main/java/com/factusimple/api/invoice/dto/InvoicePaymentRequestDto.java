@@ -1,5 +1,8 @@
 package com.factusimple.api.invoice.dto;
 
+import com.factusimple.api.infrastructure.factus.codes.PaymentFormCode;
+import com.factusimple.api.infrastructure.factus.codes.PaymentMethodCode;
+import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,10 +21,12 @@ import java.time.LocalDate;
 public class InvoicePaymentRequestDto {
 
     @NotBlank
-    private String paymentForm; // validar
+    @ValidFactusCode(PaymentFormCode.class)
+    private String paymentForm;
 
     @NotBlank
-    private String paymentMethodCode; // validar
+    @ValidFactusCode(PaymentMethodCode.class)
+    private String paymentMethodCode;
 
     private String referenceCode;
 

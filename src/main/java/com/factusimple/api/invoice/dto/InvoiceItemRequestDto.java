@@ -1,6 +1,7 @@
 package com.factusimple.api.invoice.dto;
 
-
+import com.factusimple.api.infrastructure.factus.codes.ProductStandardCode;
+import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -18,7 +19,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class InvoiceItemRequestDto {
 
-    private UUID productId;             // opcional: item sin producto del catálogo
+    private UUID productId;
 
     private String codeReference;
 
@@ -39,7 +40,8 @@ public class InvoiceItemRequestDto {
 
     private String unitMeasureCode;
 
-    private String standardCode; // validar
+    @ValidFactusCode(ProductStandardCode.class)
+    private String standardCode;
 
     private String note;
 

@@ -1,5 +1,10 @@
 package com.factusimple.api.establishments.dto;
 
+import com.factusimple.api.infrastructure.factus.codes.FiscalResponsibilityCode;
+import com.factusimple.api.infrastructure.factus.codes.LegalOrgCode;
+import com.factusimple.api.infrastructure.factus.codes.NumberingRangeIdCode;
+import com.factusimple.api.infrastructure.factus.codes.TributeCode;
+import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -27,18 +32,21 @@ public class EstablishmentRequestDto {
     @Email(message = "El email del establecimiento debe ser válido")
     private String email;
 
-    private String municipalityCode; // validar
+    private String municipalityCode;
 
     @NotBlank(message = "El NIT es requerido")
     private String nit;
 
     private String dv;
 
-    private String legalOrgCode;        // "1" = Persona Jurídica, "2" = Persona Natural - Validar
+    @ValidFactusCode(LegalOrgCode.class)
+    private String legalOrgCode;
 
-    private String tributeCode;         // default "ZZ" - Validar
+    @ValidFactusCode(TributeCode.class)
+    private String tributeCode;
 
-    private String fiscalResponsibility; // validar
+    @ValidFactusCode(FiscalResponsibilityCode.class)
+    private String fiscalResponsibility;
 
     private String resolutionPrefix;
 
@@ -50,5 +58,6 @@ public class EstablishmentRequestDto {
 
     private LocalDate resolutionExpiry;
 
-    private Long numberingRangeId; // validar
+    @ValidFactusCode(NumberingRangeIdCode.class)
+    private Long numberingRangeId;
 }

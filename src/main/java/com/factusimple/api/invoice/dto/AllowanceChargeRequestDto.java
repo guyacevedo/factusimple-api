@@ -1,5 +1,7 @@
 package com.factusimple.api.invoice.dto;
 
+import com.factusimple.api.infrastructure.factus.codes.AllowanceChargeConceptCode;
+import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +19,8 @@ import java.math.BigDecimal;
 public class AllowanceChargeRequestDto {
 
     @NotBlank
-    private String conceptType; // validar
+    @ValidFactusCode(AllowanceChargeConceptCode.class)
+    private String conceptType;
 
     @NotNull
     private Boolean isSurcharge;        // false = descuento, true = recargo
