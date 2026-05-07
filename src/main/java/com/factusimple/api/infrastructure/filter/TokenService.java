@@ -2,18 +2,20 @@ package com.factusimple.api.infrastructure.filter;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.factusimple.api.infrastructure.factus.config.FactusProperties;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TokenService {
 
-    @Value("${factus.expected_audience}")
-    private String expectedAudience;
+    private final FactusProperties factusProperties;
 
     /**
      * Validación híbrida:
@@ -69,7 +71,7 @@ public class TokenService {
     private boolean validateAudience(DecodedJWT jwt) {
 
         return jwt.getAudience() != null
-                && jwt.getAudience().contains(expectedAudience);
+                && jwt.getAudience().contains(factusProperties.expectedAudience());
     }
 
 }

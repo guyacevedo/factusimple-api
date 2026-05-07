@@ -1,6 +1,8 @@
 package com.factusimple.api.infrastructure.factus.client;
 
+import com.factusimple.api.infrastructure.factus.config.FactusProperties;
 import com.factusimple.api.infrastructure.factus.dto.FactusAuthResponseDto;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -10,38 +12,25 @@ import org.springframework.web.client.RestClient;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class FactusAuthClient {
 
     private final RestClient restClient = RestClient.create();
 
-    @Value("${factus.url}")
-    private String apiUrl;
-
-    @Value("${factus.client_id}")
-    private String clientId;
-
-    @Value("${factus.client_secret}")
-    private String clientSecret;
-
-    @Value("${factus.user}")
-    private String username;
-
-    @Value("${factus.password}")
-    private String password;
-
+    private final FactusProperties factusProperties;
 
     public FactusAuthResponseDto generateToken() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        String requestBody = "grant_type=password&client_id=" + clientId +
-                "&client_secret=" + clientSecret +
-                "&username=" + username +
-                "&password=" + password;
+        String requestBody = "grant_type=password&client_id=" + factusProperties.clientId() +
+                "&client_secret=" + factusProperties.clientSecret() +
+                "&username=" + factusProperties.user() +
+                "&password=" + factusProperties.password();
 
         try {
             FactusAuthResponseDto response = restClient.post()
-                    .uri(apiUrl + "/oauth/token")
+                    .uri(factusProperties.url() + "/oauth/token")
                     .headers(h -> h.addAll(headers))
                     .body(requestBody)
                     .retrieve()
@@ -63,13 +52,13 @@ public class FactusAuthClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        String requestBody = "grant_type=refresh_token&client_id=" + clientId +
-                "&client_secret=" + clientSecret +
+        String requestBody = "grant_type=refresh_token&client_id=" + factusProperties.clientId() +
+                "&client_secret=" + factusProperties.clientSecret() +
                 "&refresh_token=" + refreshToken;
 
         try {
             FactusAuthResponseDto response = restClient.post()
-                    .uri(apiUrl + "/oauth/token")
+                    .uri(factusProperties.url() + "/oauth/token")
                     .headers(h -> h.addAll(headers))
                     .body(requestBody)
                     .retrieve()
