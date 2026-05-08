@@ -9,6 +9,8 @@ import com.factusimple.api.product.dto.ProductResponseDto;
 import com.factusimple.api.product.entity.Product;
 import com.factusimple.api.product.mapper.ProductMapper;
 import com.factusimple.api.product.repository.ProductRepository;
+import com.factusimple.api.user.entity.User;
+import com.factusimple.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,9 +28,19 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
     private final EstablishmentService establishmentService;
+    private final UserRepository userRepository;
 
     @Transactional
     public ProductResponseDto create(UUID userId, ProductRequestDto requestDto) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        if (user.getProductsCount() >= user.getPlan().getMaxProducts()) {
+            throw new ApiException(403,
+                    "Límite del plan alcanzado: " + user.getPlan().getMaxProducts() + " productos.");
+        }
+
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
         if (productRepository.existsBySkuAndEstablishmentId(requestDto.getSku(), establishment.getId())) {
@@ -43,6 +55,9 @@ public class ProductService {
         }
 
         Product saved = productRepository.save(product);
+
+        userRepository.incrementProductsCount(userId);
+
         log.info("Producto creado: id={}, sku={}, establishmentId={}",
                 saved.getId(), saved.getSku(), establishment.getId());
         return productMapper.toDto(saved);
@@ -81,6 +96,7 @@ public class ProductService {
     public void delete(UUID userId, UUID productId) {
         Product product = requireOwned(userId, productId);
         productRepository.delete(product);
+        userRepository.decrementProductsCount(userId);
         log.info("Producto eliminado: id={}", productId);
     }
 

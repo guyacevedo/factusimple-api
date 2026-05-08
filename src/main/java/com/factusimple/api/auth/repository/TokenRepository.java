@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,6 +15,12 @@ import java.util.UUID;
 public interface TokenRepository extends JpaRepository<Token, UUID> {
 
     Optional<Token> findByToken(String token);
+
+    Optional<Token> findAllByUserAndRevokedAndTokenType(
+            User user,
+            boolean revoked,
+            Token.TokenType tokenType
+    );
 
     // Revocar todos los tokens de un usuario (útil en logout total)
     @Modifying

@@ -58,6 +58,6 @@ public class EstablishmentRequestDto {
 
     private LocalDate resolutionExpiry;
 
-    @ValidFactusCode(NumberingRangeIdCode.class)
+    //@ValidFactusCode(NumberingRangeIdCode.class)
     private Long numberingRangeId;
 }

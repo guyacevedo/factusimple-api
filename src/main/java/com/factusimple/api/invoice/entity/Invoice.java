@@ -66,17 +66,21 @@ public class Invoice extends BaseEntity {
     @Column(nullable = false, length = 20)
     private InvoiceStatus status;
 
+    @Builder.Default
     @Column(nullable = false, precision = 16, scale = 2)
-    private BigDecimal subtotal;
+    private BigDecimal subtotal = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "total_taxes", precision = 16, scale = 2)
-    private BigDecimal totalTaxes;
+    private BigDecimal totalTaxes = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "total_discounts", precision = 16, scale = 2)
-    private BigDecimal totalDiscounts;
+    private BigDecimal totalDiscounts = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(nullable = false, precision = 16, scale = 2)
-    private BigDecimal total;
+    private BigDecimal total = BigDecimal.ZERO;
 
     // Respuesta Factus (post-validación, llenado en Fase 4)
     @Column(length = 100)

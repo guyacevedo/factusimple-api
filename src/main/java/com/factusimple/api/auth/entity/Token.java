@@ -30,6 +30,7 @@ public class Token extends BaseEntity {
     private User user;
 
     @NotBlank(message = "El token no puede estar vacío")
+    //@Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false, unique = true, columnDefinition = "TEXT")
     private String token;
 

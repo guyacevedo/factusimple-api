@@ -9,6 +9,8 @@ import com.factusimple.api.establishments.entity.Establishment;
 import com.factusimple.api.establishments.service.EstablishmentService;
 import com.factusimple.api.infrastructure.exception.ApiException;
 import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
+import com.factusimple.api.user.entity.User;
+import com.factusimple.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,9 +31,19 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final CustomerMapper customerMapper;
     private final EstablishmentService establishmentService;
+    private final UserRepository userRepository;
 
     @Transactional
     public CustomerResponseDto create(UUID userId, CustomerRequestDto requestDto) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        if (user.getCustomersCount() >= user.getPlan().getMaxCustomers()) {
+            throw new ApiException(403,
+                    "Límite del plan alcanzado: " + user.getPlan().getMaxCustomers() + " clientes.");
+        }
+
         validateLegalOrgFields(requestDto);
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
@@ -49,8 +61,12 @@ public class CustomerService {
         }
 
         Customer saved = customerRepository.save(customer);
+
+        userRepository.incrementCustomersCount(userId);
+
         log.info("Cliente creado: id={}, identification={}, establishmentId={}",
                 saved.getId(), saved.getIdentification(), establishment.getId());
+
         return customerMapper.toDto(saved);
     }
 
@@ -89,6 +105,7 @@ public class CustomerService {
     public void delete(UUID userId, UUID customerId) {
         Customer customer = requireOwned(userId, customerId);
         customerRepository.delete(customer);
+        userRepository.decrementCustomersCount(userId);
         log.info("Cliente eliminado: id={}", customerId);
     }
 

@@ -14,9 +14,8 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class FactusAuthClient {
 
-    private final RestClient restClient = RestClient.create();
-
     private final FactusProperties factusProperties;
+    private final RestClient restClient;
 
     public FactusAuthResponseDto generateToken() {
         HttpHeaders headers = new HttpHeaders();
@@ -29,7 +28,7 @@ public class FactusAuthClient {
 
         try {
             FactusAuthResponseDto response = restClient.post()
-                    .uri(factusProperties.url() + "/oauth/token")
+                    .uri("/oauth/token")
                     .headers(h -> h.addAll(headers))
                     .body(requestBody)
                     .retrieve()
@@ -48,7 +47,7 @@ public class FactusAuthClient {
 
     // Generar Refresh Token
     public FactusAuthResponseDto refreshToken(String refreshToken) {
-        HttpHeaders headers = new HttpHeaders();
+    HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         String requestBody = "grant_type=refresh_token&client_id=" + factusProperties.clientId() +
@@ -57,7 +56,7 @@ public class FactusAuthClient {
 
         try {
             FactusAuthResponseDto response = restClient.post()
-                    .uri(factusProperties.url() + "/oauth/token")
+                    .uri( "/oauth/token")
                     .headers(h -> h.addAll(headers))
                     .body(requestBody)
                     .retrieve()

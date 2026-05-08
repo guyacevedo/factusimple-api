@@ -53,4 +53,4 @@ jobs:
           FACTUS_CLIENT_ID: ${{ secrets.FACTUS_CLIENT_ID }}
           FACTUS_CLIENT_SECRET: ${{ secrets.FACTUS_CLIENT_SECRET }}
           FACTUS_EXPECTED_AUDIENCE: ${{ secrets.FACTUS_EXPECTED_AUDIENCE }}
-        run: mvn -B clean verify
+        run: mvn -B flyway:migrate clean verify

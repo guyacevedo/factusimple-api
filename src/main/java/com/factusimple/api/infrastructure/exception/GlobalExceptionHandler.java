@@ -1,8 +1,9 @@
 package com.factusimple.api.infrastructure.exception;
 
-
 import com.factusimple.api.shared.dto.ApiResponseDto;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -11,9 +12,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -22,66 +24,92 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponseDto<?>> handleResourceNotFound(
-            ResourceNotFoundException ex, WebRequest request) {
+            ResourceNotFoundException ex) {
         log.warn("Recurso no encontrado: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponseDto.error(ex.getMessage()));
+                .body(ApiResponseDto.error(ex.getMessage(), ex.getErrorCode()));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponseDto<?>> handleUnauthorized(
-            UnauthorizedException ex, WebRequest request) {
+            UnauthorizedException ex) {
         log.warn("Acceso no autorizado: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponseDto.error(ex.getMessage()));
+                .body(ApiResponseDto.error(ex.getMessage(), ex.getErrorCode()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponseDto<?>> handleAccessDenied(
-            AccessDeniedException ex, WebRequest request) {
+            AccessDeniedException ex) {
         log.warn("Acceso denegado: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponseDto.error("Acceso denegado"));
+                .body(ApiResponseDto.error("Acceso denegado", "ACCESS_DENIED"));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponseDto<?>> handleBadCredentials(
-            BadCredentialsException ex, WebRequest request) {
+            BadCredentialsException ex) {
         log.warn("Credenciales inválidas");
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponseDto.error("Email o contraseña incorrectos"));
+                .body(ApiResponseDto.error("Email o contraseña incorrectos", "INVALID_CREDENTIALS"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponseDto<?>> handleValidationErrors(
-            MethodArgumentNotValidException ex, WebRequest request) {
+            MethodArgumentNotValidException ex) {
         log.warn("Error de validación: {}", ex.getMessage());
 
-        Map<String, String> errors = new HashMap<>();
+        Map<String, List<String>> errors = new HashMap<>();
         ex.getBindingResult().getFieldErrors()
-                .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
+                .forEach(error -> errors
+                        .computeIfAbsent(error.getField(), k -> new ArrayList<>())
+                        .add(error.getDefaultMessage()));
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponseDto.error("Errores de validación"));
+                .body(ApiResponseDto.<Map<String, List<String>>>error(
+                        "Errores de validación",
+                        "VALIDATION_ERROR",
+                        errors
+                ));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponseDto<?>> handleConstraintViolation(
+            ConstraintViolationException ex) {
+        log.warn("Constraint violation: {}", ex.getMessage());
+
+        Map<String, List<String>> errors = new HashMap<>();
+        ex.getConstraintViolations()
+                .forEach(violation -> errors
+                        .computeIfAbsent(violation.getPropertyPath().toString(), k -> new ArrayList<>())
+                        .add(violation.getMessage()));
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponseDto.error(
+                        "Error de validación",
+                        "CONSTRAINT_VIOLATION",
+                        errors
+                ));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponseDto<?>> handleHttpMessageNotReadable(
-            HttpMessageNotReadableException ex, WebRequest request) {
+            HttpMessageNotReadableException ex) {
         log.warn("Cuerpo de la solicitud inválido: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponseDto.error("Cuerpo de la solicitud inválido: " + ex.getMostSpecificCause().getMessage()));
+                .body(ApiResponseDto.error("Cuerpo de la solicitud inválido: " + ex.getMostSpecificCause().getMessage(), "INVALID_REQUEST_BODY"));
     }
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiResponseDto<?>> handleApiException(
-            ApiException ex, WebRequest request) {
+            ApiException ex) {
         log.error("Error API: {} - {}", ex.getStatusCode(), ex.getMessage());
 
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode());
@@ -91,16 +119,25 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(status)
-                .body(ApiResponseDto.error(ex.getMessage()));
+                .body(ApiResponseDto.error(ex.getMessage(), ex.getErrorCode()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponseDto<?>> handleIllegalArgument(
+            IllegalArgumentException ex) {
+        log.warn("Argumento inválido: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponseDto.error(ex.getMessage(), "BAD_REQUEST"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponseDto<?>> handleGlobalException(
-            Exception ex, WebRequest request) {
+            Exception ex) {
         log.error("Error inesperado", ex);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponseDto.error("Error interno del servidor"));
+                .body(ApiResponseDto.error("Error interno del servidor", "INTERNAL_SERVER_ERROR"));
     }
 }

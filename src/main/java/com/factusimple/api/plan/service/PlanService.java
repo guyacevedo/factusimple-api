@@ -66,7 +66,7 @@ public class PlanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
 
         // Check if new name conflicts with another plan (if name is being changed)
-        if (!plan.getName().equals(requestDto.getName()) && 
+        if (!plan.getName().equals(requestDto.getName()) &&
             planRepository.findByName(requestDto.getName()).isPresent()) {
             throw new ApiException(409, "Plan with name '" + requestDto.getName() + "' already exists");
         }

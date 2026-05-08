@@ -33,6 +33,7 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/webjars/**",
             "/v1/municipalities/**",
+            "/v1/factus-codes/**",
             "/auth/register",
             "/auth/login",
     };
