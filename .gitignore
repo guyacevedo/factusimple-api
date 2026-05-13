@@ -50,3 +50,6 @@ build/
 # --- Sistema ---
 .DS_Store
 Thumbs.db
+
+# Claude Code
+CLAUDE.md
