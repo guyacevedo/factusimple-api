@@ -31,6 +31,8 @@ public class PlanRequestDto {
 
     private Boolean requiredInvitedCode;
 
+    private String code;
+
     private String description;
 
     private Boolean isActive;

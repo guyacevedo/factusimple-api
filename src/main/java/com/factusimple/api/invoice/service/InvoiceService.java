@@ -5,8 +5,7 @@ import com.factusimple.api.customer.entity.Customer;
 import com.factusimple.api.customer.repository.CustomerRepository;
 import com.factusimple.api.establishments.entity.Establishment;
 import com.factusimple.api.establishments.service.EstablishmentService;
-import com.factusimple.api.infrastructure.exception.ApiException;
-import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
+import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.infrastructure.factus.client.FactusBillsClient;
 import com.factusimple.api.infrastructure.factus.codes.InvoiceDocumentType;
 import com.factusimple.api.infrastructure.factus.codes.InvoiceOperationType;
@@ -61,16 +60,32 @@ public class InvoiceService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        if (user.getInvoiceCount() >= user.getPlan().getMaxInvoices()) {
-            throw new ApiException(403,
+        validatePayments(requestDto.getPayments());
+        validateItemTaxes(requestDto.getItems());
+
+        Invoice saved = createInvoiceLocal(userId, requestDto);
+
+        // Atomic increment: if limit reached, returns 0 (no update)
+        int updated = userRepository.incrementInvoiceCountIfBelowLimit(userId, user.getPlan().getMaxInvoices());
+        if (updated == 0) {
+            throw new ForbiddenException(
                     "Límite del plan alcanzado: " + user.getPlan().getMaxInvoices() + " facturas");
         }
 
+        // Sync síncrono con Factus. Errores no abortan la creación local
+        // (la factura queda con status=ERROR + factusError para poder reintentar).
+        syncToFactusSafely(user, saved);
+
+        return invoiceMapper.toDto(saved);
+    }
+
+    @Transactional
+    private Invoice createInvoiceLocal(UUID userId, InvoiceRequestDto requestDto) {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
         if (invoiceRepository.existsByReferenceCodeAndEstablishmentId(
                 requestDto.getReferenceCode(), establishment.getId())) {
-            throw new ApiException(409,
+            throw new ConflictException(
                     "Ya existe una factura con referenceCode '" + requestDto.getReferenceCode()
                             + "' en este establecimiento");
         }
@@ -80,72 +95,55 @@ public class InvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Customer", "id", requestDto.getCustomerId()));
 
-        validatePayments(requestDto.getPayments());
-        validateItemTaxes(requestDto.getItems());
-
         Invoice invoice = invoiceMapper.toEntity(requestDto);
         invoice.setEstablishment(establishment);
         invoice.setCustomer(customer);
         invoice.setStatus(InvoiceStatus.PENDING);
         invoice.setDocumentType(
                 requestDto.getDocumentType() != null ? requestDto.getDocumentType() : InvoiceDocumentType.FACTURA_VENTA.getCode());
-        invoice.setOperationType(
-                requestDto.getOperationType() != null ? requestDto.getOperationType() : InvoiceOperationType.ESTANDAR.getCode());
-        invoice.setSendEmail((requestDto.getSendEmail() != null) ? requestDto.getSendEmail() : false);
+        invoice.setOperationType(InvoiceOperationType.ESTANDAR.getCode());
+        invoice.setSendEmail((requestDto.getSendEmail() != null) && requestDto.getSendEmail());
         attachItems(invoice, requestDto.getItems(), establishment.getId());
         attachPayments(invoice, requestDto.getPayments());
         attachPrepayments(invoice, requestDto.getPrepayments());
         attachAllowanceCharges(invoice, requestDto.getAllowanceCharges());
 
         applyTotals(invoice);
-
         validateStockAvailability(invoice.getItems());
 
         Invoice saved = invoiceRepository.save(invoice);
-
-        userRepository.incrementInvoiceCount(userId);
         deductStock(saved.getItems());
 
         log.info("Factura creada: id={}, referenceCode={}, total={}",
                 saved.getId(), saved.getReferenceCode(), saved.getTotal());
 
-        // Sync síncrono con Factus. Errores no abortan la creación local
-        // (la factura queda con status=ERROR + factusError para poder reintentar).
-        syncToFactusSafely(user, saved);
-
-        return invoiceMapper.toDto(saved);
+        return saved;
     }
 
     /**
      * Reintenta el envío a Factus para una factura PENDING o ERROR.
      * No incrementa invoiceCount (eso ocurre solo en create()).
      */
-    @Transactional
     public InvoiceResponseDto syncWithFactus(UUID userId, UUID invoiceId) {
-        Invoice invoice = requireOwned(userId, invoiceId);
-        if (invoice.getStatus() == InvoiceStatus.VALIDATED) {
-            throw new ApiException(409, "La factura ya está validada en Factus");
-        }
-        if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
-            throw new ApiException(409, "La factura está cancelada");
-        }
+        Invoice invoice = getAndValidateForSync(userId, invoiceId);
         syncToFactusSafely(invoice.getEstablishment().getUser(), invoice);
         return invoiceMapper.toDto(invoice);
     }
 
     @Transactional
-    public InvoiceResponseDto cancel(UUID userId, UUID invoiceId) {
+    private Invoice getAndValidateForSync(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
-
         if (invoice.getStatus() == InvoiceStatus.VALIDATED) {
-            throw new ApiException(409,
-                    "Las facturas validadas no pueden cancelarse directamente; emita una nota crédito");
+            throw new ConflictException("La factura ya está validada en Factus");
         }
         if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
-            throw new ApiException(409, "La factura ya está cancelada");
+            throw new ConflictException("La factura está cancelada");
         }
+        return invoice;
+    }
 
-        restoreStock(invoice.getItems());
+    public InvoiceResponseDto cancel(UUID userId, UUID invoiceId) {
+        Invoice invoice = getAndValidateForCancel(userId, invoiceId);
 
         if (invoice.getFactusNumber() != null) {
             try {
@@ -157,12 +155,35 @@ public class InvoiceService {
             }
         }
 
+        markAsCancelledInTransaction(userId, invoiceId);
+        log.info("Factura cancelada: id={}", invoiceId);
+
+        invoice = requireOwned(userId, invoiceId);
+        return invoiceMapper.toDto(invoice);
+    }
+
+    @Transactional
+    private Invoice getAndValidateForCancel(UUID userId, UUID invoiceId) {
+        Invoice invoice = requireOwned(userId, invoiceId);
+
+        if (invoice.getStatus() == InvoiceStatus.VALIDATED) {
+            throw new ConflictException(
+                    "Las facturas validadas no pueden cancelarse directamente; emita una nota crédito");
+        }
+        if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
+            throw new ConflictException("La factura ya está cancelada");
+        }
+
+        restoreStock(invoice.getItems());
+        return invoice;
+    }
+
+    @Transactional
+    private void markAsCancelledInTransaction(UUID userId, UUID invoiceId) {
+        Invoice invoice = requireOwned(userId, invoiceId);
         invoice.setStatus(InvoiceStatus.CANCELLED);
         invoiceRepository.save(invoice);
         userRepository.decrementInvoiceCount(userId);
-
-        log.info("Factura cancelada: id={}", invoiceId);
-        return invoiceMapper.toDto(invoice);
     }
 
     @Transactional(readOnly = true)
@@ -179,22 +200,20 @@ public class InvoiceService {
 
     private void syncToFactusSafely(User user, Invoice invoice) {
         try {
-            // Idempotency guard: si ya tiene factusNumber, solo refrescar datos
             if (invoice.getFactusNumber() != null) {
                 var complete = factusBillsClient.getBillDetailsFromFactus(user, invoice.getFactusNumber());
                 invoice.setCufe(complete.getCufe());
                 invoice.setXmlUrl(complete.getXmlUrl());
                 invoice.setStatus(complete.isValidated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
                 invoice.setFactusError(null);
-                invoiceRepository.save(invoice);
+                saveInvoiceInTransaction(invoice);
                 log.info("Factura {} ya existía en Factus, datos refrescados", invoice.getId());
                 return;
             }
 
             var response = factusBillsClient.createBillAtFactus(invoice);
-            var parsed = factusBillsClient.parseBillResponse(response);
+            var parsed = FactusBillsClient.parseBillResponse(response);
 
-            // Si se obtuvo número, obtener datos completos desde Factus
             if (parsed.getNumber() != null) {
                 var complete = factusBillsClient.getBillDetailsFromFactus(user, parsed.getNumber());
                 invoice.setFactusNumber(complete.getNumber());
@@ -202,36 +221,41 @@ public class InvoiceService {
                 invoice.setXmlUrl(complete.getXmlUrl());
                 invoice.setStatus(complete.isValidated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
             } else {
-                invoice.setFactusNumber(parsed.getNumber());
+                invoice.setFactusNumber(null);
                 invoice.setCufe(parsed.getCufe());
                 invoice.setXmlUrl(parsed.getXmlUrl());
                 invoice.setStatus(parsed.isValidated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
             }
 
             invoice.setFactusError(null);
-            invoiceRepository.save(invoice);
+            saveInvoiceInTransaction(invoice);
             log.info("Factura sincronizada con Factus: id={}, factusNumber={}, status={}",
                     invoice.getId(), invoice.getFactusNumber(), invoice.getStatus());
         } catch (Exception e) {
             log.error("Sync con Factus falló para invoice {}: {}", invoice.getId(), e.getMessage());
             invoice.setStatus(InvoiceStatus.ERROR);
-            invoice.setFactusError(truncate(e.getMessage(), 2000));
-            invoiceRepository.save(invoice);
+            invoice.setFactusError(truncate(e.getMessage()));
+            saveInvoiceInTransaction(invoice);
         }
+    }
+
+    @Transactional
+    private void saveInvoiceInTransaction(Invoice invoice) {
+        invoiceRepository.save(invoice);
     }
 
     private Invoice requireValidated(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
         if (invoice.getStatus() != InvoiceStatus.VALIDATED || invoice.getFactusNumber() == null) {
-            throw new ApiException(409,
+            throw new ConflictException(
                     "La factura no está validada en Factus (status=" + invoice.getStatus() + ")");
         }
         return invoice;
     }
 
-    private static String truncate(String value, int max) {
+    private static String truncate(String value) {
         if (value == null) return null;
-        return value.length() <= max ? value : value.substring(0, max);
+        return value.length() <= 2000 ? value : value.substring(0, 2000);
     }
 
     @Transactional(readOnly = true)
@@ -258,36 +282,41 @@ public class InvoiceService {
         return page.map(invoiceMapper::toDto);
     }
 
-    @Transactional
     public void delete(UUID userId, UUID invoiceId) {
-        Invoice invoice = requireOwned(userId, invoiceId);
-        if (invoice.getStatus() == InvoiceStatus.VALIDATED) {
-            throw new ApiException(409,
-                    "No se puede eliminar una factura validada en Factus; emita una nota crédito");
-        }
+        Invoice invoice = getAndValidateForDelete(userId, invoiceId);
 
-        // Restaurar stock solo si no fue ya cancelado (cancel ya restauró el stock)
-        if (invoice.getStatus() != InvoiceStatus.CANCELLED) {
-            restoreStock(invoice.getItems());
-        }
-
-        // Solo llamar a Factus delete si la factura llegó allá (factusNumber != null)
-        // Un invoice con status=ERROR pero sin factusNumber nunca llegó a Factus.
         if (invoice.getFactusNumber() != null) {
             try {
                 factusBillsClient.deleteBillAtFactus(invoice.getEstablishment().getUser(),invoice.getReferenceCode());
             } catch (Exception e) {
                 log.warn("No se pudo eliminar factura en Factus (referenceCode={}): {}",
                         invoice.getReferenceCode(), e.getMessage());
-                // Continuamos con el delete local de todos modos.
             }
         }
 
-        invoiceRepository.delete(invoice);
-
-        userRepository.decrementInvoiceCount(userId);
-
+        deleteInvoiceInTransaction(userId, invoiceId);
         log.info("Factura eliminada: id={}", invoiceId);
+    }
+
+    @Transactional
+    private Invoice getAndValidateForDelete(UUID userId, UUID invoiceId) {
+        Invoice invoice = requireOwned(userId, invoiceId);
+        if (invoice.getStatus() == InvoiceStatus.VALIDATED) {
+            throw new ApiException(409,
+                    "No se puede eliminar una factura validada en Factus; emita una nota crédito");
+        }
+
+        if (invoice.getStatus() != InvoiceStatus.CANCELLED) {
+            restoreStock(invoice.getItems());
+        }
+        return invoice;
+    }
+
+    @Transactional
+    private void deleteInvoiceInTransaction(UUID userId, UUID invoiceId) {
+        Invoice invoice = requireOwned(userId, invoiceId);
+        invoiceRepository.delete(invoice);
+        userRepository.decrementInvoiceCount(userId);
     }
 
     private Invoice requireOwned(UUID userId, UUID invoiceId) {
@@ -302,7 +331,7 @@ public class InvoiceService {
         for (InvoicePaymentRequestDto p : payments) {
             // validar
             if (p.getPaymentForm().equals("2") && p.getDueDate() == null) {
-                throw new ApiException(400,
+                throw new BadRequestException(
                         "Pagos a crédito (paymentForm='2') requieren dueDate");
             }
         }
@@ -315,7 +344,7 @@ public class InvoiceService {
                 boolean withholding = Boolean.TRUE.equals(tax.getIsWithholding());
                 Set<String> allowed = withholding ? VALID_WITHHOLDING_CODES : VALID_TAX_CODES;
                 if (!allowed.contains(tax.getTaxCode())) {
-                    throw new ApiException(400,
+                    throw new BadRequestException(
                             "Item #" + (i + 1) + ": código '" + tax.getTaxCode()
                                     + "' inválido para " + (withholding ? "retención" : "impuesto")
                                     + ". Valores aceptados: " + String.join(", ", allowed));
@@ -384,7 +413,7 @@ public class InvoiceService {
      * - totalSurcharges = Σ allowanceCharges (surcharge)
      * - totalPrepayments = Σ prepayments
      * - total = (subtotal − totalDiscounts) + totalTaxes + totalSurcharges − totalPrepayments + cashRounding
-     *
+     * <p>
      * Las retenciones se registran pero no afectan el total del documento (Factus las maneja aparte).
      */
     private void applyTotals(Invoice invoice) {
@@ -447,7 +476,7 @@ public class InvoiceService {
         for (InvoiceItem item : items) {
             if (item.getProduct() == null || item.getProduct().getStock() == null) continue;
             if (item.getProduct().getStock().compareTo(item.getQuantity()) < 0) {
-                throw new ApiException(422,
+                throw new UnprocessableEntityException(
                         "Stock insuficiente para el producto '" + item.getProduct().getSku()
                         + "': disponible " + item.getProduct().getStock()
                         + ", requerido " + item.getQuantity());
@@ -461,7 +490,7 @@ public class InvoiceService {
             int updated = productRepository.decrementStock(
                     item.getProduct().getId(), item.getQuantity());
             if (updated == 0) {
-                throw new ApiException(409,
+                throw new ConflictException(
                         "Stock insuficiente para el producto '" + item.getProduct().getSku()
                         + "' (modificado por otra operación concurrente)");
             }

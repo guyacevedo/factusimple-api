@@ -2,8 +2,7 @@ package com.factusimple.api.product.service;
 
 import com.factusimple.api.establishments.entity.Establishment;
 import com.factusimple.api.establishments.service.EstablishmentService;
-import com.factusimple.api.infrastructure.exception.ApiException;
-import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
+import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.product.dto.ProductRequestDto;
 import com.factusimple.api.product.dto.ProductResponseDto;
 import com.factusimple.api.product.entity.Product;
@@ -36,15 +35,10 @@ public class ProductService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        if (user.getProductsCount() >= user.getPlan().getMaxProducts()) {
-            throw new ApiException(403,
-                    "Límite del plan alcanzado: " + user.getPlan().getMaxProducts() + " productos.");
-        }
-
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
         if (productRepository.existsBySkuAndEstablishmentId(requestDto.getSku(), establishment.getId())) {
-            throw new ApiException(409,
+            throw new ConflictException(
                     "Ya existe un producto con SKU '" + requestDto.getSku() + "' en este establecimiento");
         }
 
@@ -56,7 +50,12 @@ public class ProductService {
 
         Product saved = productRepository.save(product);
 
-        userRepository.incrementProductsCount(userId);
+        // Atomic increment: if limit reached, returns 0 (no update)
+        int updated = userRepository.incrementProductsCountIfBelowLimit(userId, user.getPlan().getMaxProducts());
+        if (updated == 0) {
+            throw new ForbiddenException(
+                    "Límite del plan alcanzado: " + user.getPlan().getMaxProducts() + " productos.");
+        }
 
         log.info("Producto creado: id={}, sku={}, establishmentId={}",
                 saved.getId(), saved.getSku(), establishment.getId());
@@ -82,7 +81,7 @@ public class ProductService {
         if (!product.getSku().equals(requestDto.getSku())
                 && productRepository.existsBySkuAndEstablishmentId(
                         requestDto.getSku(), product.getEstablishment().getId())) {
-            throw new ApiException(409,
+            throw new ConflictException(
                     "Ya existe un producto con SKU '" + requestDto.getSku() + "' en este establecimiento");
         }
 

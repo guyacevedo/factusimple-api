@@ -16,6 +16,7 @@ public class FactusCodesResponseDto {
     private List<FactusCodeItemDto> allowanceChargeConcepts;
     private List<FactusCodeItemDto> identityDocumentTypes;
     private List<FactusCodeItemDto> legalOrgTypes;
+    private List<FactusCodeItemDto> invoiceOperationTypes;
     private List<FactusCodeItemDto> fiscalResponsibilities;
     private List<FactusCodeItemDto> productStandards;
     private List<FactusCodeItemDto> invoiceCorrections;

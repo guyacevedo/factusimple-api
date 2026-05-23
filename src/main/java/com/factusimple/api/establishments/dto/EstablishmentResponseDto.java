@@ -27,12 +27,7 @@ public class EstablishmentResponseDto {
     private String legalOrgCode;
     private String tributeCode;
     private String fiscalResponsibility;
-    private String resolutionPrefix;
-    private Long resolutionFrom;
-    private Long resolutionTo;
-    private Long resolutionCurrent;
-    private LocalDate resolutionExpiry;
-    private Long numberingRangeId;
+    private Integer numberingRangeId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

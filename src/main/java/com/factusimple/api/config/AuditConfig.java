@@ -20,7 +20,7 @@ public class AuditConfig {
         return () -> Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
                 .filter(Authentication::isAuthenticated)
                 .map(Authentication::getPrincipal)
-                .filter(principal -> principal instanceof CustomUserDetails)
+                .filter(CustomUserDetails.class::isInstance)
                 .map(principal -> ((CustomUserDetails) principal).getUserId());
     }
 }

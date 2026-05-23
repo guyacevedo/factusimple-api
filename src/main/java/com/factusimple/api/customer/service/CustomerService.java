@@ -7,8 +7,7 @@ import com.factusimple.api.customer.mapper.CustomerMapper;
 import com.factusimple.api.customer.repository.CustomerRepository;
 import com.factusimple.api.establishments.entity.Establishment;
 import com.factusimple.api.establishments.service.EstablishmentService;
-import com.factusimple.api.infrastructure.exception.ApiException;
-import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
+import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.user.entity.User;
 import com.factusimple.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,17 +38,12 @@ public class CustomerService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        if (user.getCustomersCount() >= user.getPlan().getMaxCustomers()) {
-            throw new ApiException(403,
-                    "Límite del plan alcanzado: " + user.getPlan().getMaxCustomers() + " clientes.");
-        }
-
         validateLegalOrgFields(requestDto);
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
         if (customerRepository.existsByIdentificationAndEstablishmentId(
                 requestDto.getIdentification(), establishment.getId())) {
-            throw new ApiException(409,
+            throw new ConflictException(
                     "Ya existe un cliente con identificación '"
                             + requestDto.getIdentification() + "' en este establecimiento");
         }
@@ -62,7 +56,12 @@ public class CustomerService {
 
         Customer saved = customerRepository.save(customer);
 
-        userRepository.incrementCustomersCount(userId);
+        // Atomic increment: if limit reached, returns 0 (no update)
+        int updated = userRepository.incrementCustomersCountIfBelowLimit(userId, user.getPlan().getMaxCustomers());
+        if (updated == 0) {
+            throw new ForbiddenException(
+                    "Límite del plan alcanzado: " + user.getPlan().getMaxCustomers() + " clientes.");
+        }
 
         log.info("Cliente creado: id={}, identification={}, establishmentId={}",
                 saved.getId(), saved.getIdentification(), establishment.getId());
@@ -90,7 +89,7 @@ public class CustomerService {
         if (!customer.getIdentification().equals(requestDto.getIdentification())
                 && customerRepository.existsByIdentificationAndEstablishmentId(
                         requestDto.getIdentification(), customer.getEstablishment().getId())) {
-            throw new ApiException(409,
+            throw new ConflictException(
                     "Ya existe un cliente con identificación '"
                             + requestDto.getIdentification() + "' en este establecimiento");
         }
@@ -125,10 +124,10 @@ public class CustomerService {
             return;
         }
         if (LEGAL_ORG_PJ.equals(code) && (dto.getCompany() == null || dto.getCompany().isBlank())) {
-            throw new ApiException(400, "Persona Jurídica requiere razón social ('company')");
+            throw new BadRequestException("Persona Jurídica requiere razón social ('company')");
         }
         if (LEGAL_ORG_PN.equals(code) && (dto.getNames() == null || dto.getNames().isBlank())) {
-            throw new ApiException(400, "Persona Natural requiere nombres ('names')");
+            throw new BadRequestException("Persona Natural requiere nombres ('names')");
         }
     }
 }

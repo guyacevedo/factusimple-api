@@ -47,17 +47,4 @@ public class EstablishmentRequestDto {
 
     @ValidFactusCode(FiscalResponsibilityCode.class)
     private String fiscalResponsibility;
-
-    private String resolutionPrefix;
-
-    private Long resolutionFrom;
-
-    private Long resolutionTo;
-
-    private Long resolutionCurrent;
-
-    private LocalDate resolutionExpiry;
-
-    //@ValidFactusCode(NumberingRangeIdCode.class)
-    private Long numberingRangeId;
 }

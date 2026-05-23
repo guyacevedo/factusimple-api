@@ -5,8 +5,8 @@ import com.factusimple.api.establishments.dto.EstablishmentResponseDto;
 import com.factusimple.api.establishments.entity.Establishment;
 import com.factusimple.api.establishments.mapper.EstablishmentMapper;
 import com.factusimple.api.establishments.repository.EstablishmentRepository;
-import com.factusimple.api.infrastructure.exception.ApiException;
-import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
+import com.factusimple.api.infrastructure.exception.*;
+import com.factusimple.api.infrastructure.factus.codes.NumberingRangeIdCode;
 import com.factusimple.api.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,14 +32,15 @@ public class EstablishmentService {
     @Transactional
     public void createForUser(User user, EstablishmentRequestDto requestDto) {
         if (establishmentRepository.existsByUserId(user.getId())) {
-            throw new ApiException(409, "El usuario ya tiene un establecimiento asociado");
+            throw new ConflictException("El usuario ya tiene un establecimiento asociado");
         }
         if (establishmentRepository.existsByNit(requestDto.getNit())) {
-            throw new ApiException(409, "Ya existe un establecimiento con NIT " + requestDto.getNit());
+            throw new ConflictException("Ya existe un establecimiento con NIT " + requestDto.getNit());
         }
 
         Establishment establishment = establishmentMapper.toEntity(requestDto);
         establishment.setUser(user);
+        establishment.setNumberingRangeId(Integer.parseInt(NumberingRangeIdCode.FASI.getCode()));
         Establishment saved = establishmentRepository.save(establishment);
         log.info("Establishment creado: id={}, nit={}, userId={}",
                 saved.getId(), saved.getNit(), user.getId());
@@ -67,7 +68,7 @@ public class EstablishmentService {
 
         if (!establishment.getNit().equals(requestDto.getNit())
                 && establishmentRepository.existsByNit(requestDto.getNit())) {
-            throw new ApiException(409, "Ya existe un establecimiento con NIT " + requestDto.getNit());
+            throw new ConflictException("Ya existe un establecimiento con NIT " + requestDto.getNit());
         }
 
         establishmentMapper.updateEntity(requestDto, establishment);

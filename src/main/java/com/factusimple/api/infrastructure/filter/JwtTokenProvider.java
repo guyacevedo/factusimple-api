@@ -1,18 +1,16 @@
 package com.factusimple.api.infrastructure.filter;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
@@ -30,58 +28,25 @@ public class JwtTokenProvider {
     public String generateAccessToken(UUID userId, String email) {
         Date expiresAt = new Date(System.currentTimeMillis() + (expirationHours * 60 * 60 * 1000));
 
-        return Jwts.builder()
-                .setSubject(email)
-                .claim("userId", userId.toString())
-                .setIssuedAt(new Date())
-                .setExpiration(expiresAt)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+        return JWT.create()
+                .withSubject(email)
+                .withClaim("userId", userId.toString())
+                .withIssuedAt(new Date())
+                .withExpiresAt(expiresAt)
+                .sign(Algorithm.HMAC256(jwtSecret.getBytes(StandardCharsets.UTF_8)));
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token);
+            getAlgorithm().verify(JWT.decode(token));
             return true;
-        } catch (Exception e) {
+        } catch (JWTVerificationException e) {
             log.debug("JWT validation failed: {}", e.getMessage());
             return false;
         }
     }
 
-    public String extractEmail(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return claims.getSubject();
-        } catch (Exception e) {
-            log.debug("Failed to extract email from token: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    public UUID extractUserId(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            String userId = (String) claims.get("userId");
-            return userId != null ? UUID.fromString(userId) : null;
-        } catch (Exception e) {
-            log.debug("Failed to extract userId from token: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    private Algorithm getAlgorithm() {
+        return Algorithm.HMAC256(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 }

@@ -22,6 +22,7 @@ public class PlanResponseDto {
     private Boolean isActive;
     private String description;
     private Boolean requiredInvitedCode;
+    private String code;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

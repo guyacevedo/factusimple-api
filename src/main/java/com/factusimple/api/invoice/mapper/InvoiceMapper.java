@@ -1,5 +1,6 @@
 package com.factusimple.api.invoice.mapper;
 
+import com.factusimple.api.customer.mapper.CustomerMapper;
 import com.factusimple.api.invoice.dto.*;
 import com.factusimple.api.invoice.entity.*;
 import org.mapstruct.Mapper;
@@ -7,13 +8,13 @@ import org.mapstruct.Mapping;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = {CustomerMapper.class})
 public interface InvoiceMapper {
 
     // ----- Invoice -----
 
     @Mapping(source = "establishment.id", target = "establishmentId")
-    @Mapping(source = "customer.id", target = "customerId")
+    @Mapping(source = "customer", target = "customer")
     InvoiceResponseDto toDto(Invoice invoice);
 
     /**
@@ -23,6 +24,7 @@ public interface InvoiceMapper {
     @Mapping(target = "establishment", ignore = true)
     @Mapping(target = "customer", ignore = true)
     @Mapping(target = "status", ignore = true)
+    @Mapping(target = "operationType", ignore = true)
     @Mapping(target = "subtotal", ignore = true)
     @Mapping(target = "totalTaxes", ignore = true)
     @Mapping(target = "totalDiscounts", ignore = true)

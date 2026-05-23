@@ -25,14 +25,16 @@ public class Token extends BaseEntity {
         REFRESH
     }
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @NotBlank(message = "El token no puede estar vacío")
-    //@Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false, unique = true, columnDefinition = "TEXT")
     private String token;
+
+    @Column(columnDefinition = "TEXT")
+    private String factusToken;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

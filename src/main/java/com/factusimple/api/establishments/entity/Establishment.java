@@ -52,23 +52,8 @@ public class Establishment extends BaseEntity {
     @Column(name = "fiscal_responsibility", length = 50)
     private String fiscalResponsibility;
 
-    @Column(name = "resolution_prefix", length = 10)
-    private String resolutionPrefix;
-
-    @Column(name = "resolution_from")
-    private Long resolutionFrom;
-
-    @Column(name = "resolution_to")
-    private Long resolutionTo;
-
-    @Column(name = "resolution_current")
-    private Long resolutionCurrent;
-
-    @Column(name = "resolution_expiry")
-    private LocalDate resolutionExpiry;
-
     @Column(name = "numbering_range_id")
-    private Long numberingRangeId;
+    private Integer numberingRangeId;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, unique = true)

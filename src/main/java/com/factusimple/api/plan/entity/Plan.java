@@ -45,6 +45,9 @@ public class Plan extends BaseEntity {
     @Column(nullable = false)
     private Boolean requiredInvitedCode = false;
 
+    @Column(nullable = true, length = 255)
+    private String code;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

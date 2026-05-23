@@ -10,7 +10,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UserMapper extends BaseMapper<User, UserResponseDto> {
 
-    @Mapping(source = "role.name", target = "role")
+    @Mapping(source = "role", target = "role")
     @Mapping(source = "plan.name", target = "planName")
     @Mapping(source = "plan.maxProducts", target = "maxProducts")
     @Mapping(source = "plan.maxCustomers", target = "maxCustomers")

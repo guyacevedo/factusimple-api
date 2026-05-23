@@ -1,5 +1,6 @@
 package com.factusimple.api.invoice.dto;
 
+import com.factusimple.api.customer.dto.CustomerResponseDto;
 import com.factusimple.api.invoice.entity.InvoiceStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +20,7 @@ public class InvoiceResponseDto {
 
     private UUID id;
     private UUID establishmentId;
-    private UUID customerId;
+    private CustomerResponseDto customer;
     private String referenceCode;
     private String documentType;
     private String operationType;

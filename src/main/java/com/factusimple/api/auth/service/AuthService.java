@@ -8,12 +8,12 @@ import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
 import com.factusimple.api.infrastructure.exception.UnauthorizedException;
 import com.factusimple.api.infrastructure.factus.client.FactusAuthClient;
 import com.factusimple.api.infrastructure.factus.dto.FactusAuthResponseDto;
+import com.factusimple.api.infrastructure.filter.JwtTokenProvider;
 import com.factusimple.api.plan.entity.Plan;
 import com.factusimple.api.plan.repository.PlanRepository;
 import com.factusimple.api.user.entity.Role;
 import com.factusimple.api.user.entity.User;
 import com.factusimple.api.user.mapper.UserMapper;
-import com.factusimple.api.user.repository.RoleRepository;
 import com.factusimple.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,50 +22,56 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
     private final PlanRepository planRepository;
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final EstablishmentService establishmentService;
     private final FactusAuthClient factusAuthClient;
+    private final JwtTokenProvider jwtTokenProvider;
 
     /**
      * Registro de usuario.
      */
     public LoginResponseDto register(RegisterRequestDto request) {
+        createUserLocal(request);
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
 
-        // Validar  email unico
+        FactusAuthResponseDto generatedToken = factusAuthClient.generateToken();
+        validateFactusResponse(generatedToken);
+
+        Token accessToken = saveTokensLocal(user, generatedToken);
+        log.info("Usuario registrado: {}", user.getEmail());
+
+        return buildLoginResponse(user, accessToken);
+    }
+
+    @Transactional
+    protected void createUserLocal(RegisterRequestDto request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("El email ya está registrado");
         }
 
-        // Rol por defecto: ESTABLISHMENT.
-        Role role = roleRepository.findByName("ESTABLISHMENT")
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Role", "name", "ESTABLISHMENT"));
-
-        // Plan por defecto
         Plan defaultPlan = planRepository.findByName("FREE")
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Plan", "name", "FREE"));
+                .orElseThrow(() -> new ResourceNotFoundException("Plan", "name", "FREE"));
 
-        // Crear usuario
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .phone(request.getPhone())
-                .role(role)
+                .role(Role.ESTABLISHMENT)
                 .plan(defaultPlan)
                 .invoiceCount(0)
                 .productsCount(0)
@@ -74,104 +80,73 @@ public class AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
-        log.info("Usuario registrado: {}", savedUser.getEmail());
-
-        // Crear el establecimiento
         establishmentService.createForUser(savedUser, request.getEstablishment());
-
-        // Obtener tokens desde Factus
-        FactusAuthResponseDto generatedToken = factusAuthClient.generateToken();
-
-        validateFactusResponse(generatedToken);
-
-        // Revocar sesiones anteriores
-        revokeAllUserTokens(savedUser);
-
-        // Guardar nuevos tokens
-        saveFactusTokens(savedUser, generatedToken);
-
-        return buildLoginResponse(user, generatedToken);
     }
 
     /**
      * Inicio de sesion
      */
     public LoginResponseDto login(LoginRequestDto request) {
+        User user = validateCredentialsLocal(request);
 
+        FactusAuthResponseDto generatedToken = factusAuthClient.generateToken();
+        validateFactusResponse(generatedToken);
+
+        Token accessToken = revokeAndSaveTokensLocal(user, generatedToken);
+        log.info("Usuario logueado: {}", user.getEmail());
+
+        return buildLoginResponse(user, accessToken);
+    }
+
+    @Transactional
+    protected User validateCredentialsLocal(LoginRequestDto request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos"));
 
-        // Validar contraseña
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new UnauthorizedException("Email o contraseña incorrectos");
         }
 
-        // Validar usuario activo
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new UnauthorizedException(
-                    "Usuario deshabilitado"
-            );
+            throw new UnauthorizedException("Usuario deshabilitado");
         }
 
-        // Actualizar último login
         user.setLastLogin(LocalDateTime.now());
-
         userRepository.save(user);
-
-        // Obtener tokens desde Factus
-        FactusAuthResponseDto generatedToken = factusAuthClient.generateToken();
-
-        validateFactusResponse(generatedToken);
-
-        // Revocar sesiones anteriores
-        revokeAllUserTokens(user);
-
-        // Guardar nuevos tokens
-        saveFactusTokens(user, generatedToken);
-
-        log.info("Usuario logueado: {}", user.getEmail());
-
-        return buildLoginResponse(user, generatedToken);
+        return user;
     }
 
     /**
      * Renovar access token usando refresh token.
      */
     public LoginResponseDto refreshToken(RefreshTokenRequestDto request) {
+        User user = validateRefreshTokenLocal(request.getRefreshToken());
 
-        String refreshToken = request.getRefreshToken();
+        FactusAuthResponseDto generatedToken = factusAuthClient.refreshToken(request.getRefreshToken());
+        validateFactusResponse(generatedToken);
 
+        Token accessToken = saveTokensLocal(user, generatedToken);
+        log.info("Token refrescado para usuario: {}", user.getEmail());
+
+        return buildLoginResponse(user, accessToken);
+    }
+
+    @Transactional
+    protected User validateRefreshTokenLocal(String refreshToken) {
         Token refreshTokenEntity = tokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new UnauthorizedException("Refresh token inválido"));
 
-        // Validar tipo
         if (refreshTokenEntity.getTokenType() != Token.TokenType.REFRESH) {
-            throw new UnauthorizedException(
-                    "Token inválido"
-            );
+            throw new UnauthorizedException("Token inválido");
         }
 
-        // Validar estado
         if (!refreshTokenEntity.isValid()) {
             throw new UnauthorizedException("Refresh token expirado o revocado");
         }
 
         User user = refreshTokenEntity.getUser();
-
-        // Revocar TODOS los tokens anteriores
         revokeAllUserTokens(user);
-
-        // Solicitar nuevos tokens a Factus
-        FactusAuthResponseDto generatedToken = factusAuthClient.refreshToken(refreshToken);
-
-        validateFactusResponse(generatedToken);
-
-        // Guardar nuevos tokens
-        saveFactusTokens(user, generatedToken);
-
-        log.info("Token refrescado para usuario: {}", user.getEmail());
-
-        return buildLoginResponse(user, generatedToken);
+        return user;
     }
 
     /**
@@ -181,42 +156,36 @@ public class AuthService {
     public void logout(String refreshToken) {
         tokenRepository.findByToken(refreshToken)
                 .ifPresent(token -> {
-
                     User user = token.getUser();
-
                     revokeAllUserTokens(user);
-
-                    log.info(
-                            "Usuario deslogueado: {}",
-                            user.getEmail()
-                    );
+                    log.info("Usuario deslogueado: {}", user.getEmail());
                 });
     }
 
     /**
      * Revoca todos los tokens activos del usuario.
      */
-    private void revokeAllUserTokens(User user) {
-
+    @Transactional
+    protected void revokeAllUserTokens(User user) {
         tokenRepository.revokeAllByUser(user);
-
-        log.debug(
-                "Tokens revocados para usuario: {}",
-                user.getEmail()
-        );
+        log.debug("Tokens revocados para usuario: {}", user.getEmail());
     }
 
     /**
      * Guarda access token y refresh token.
+     * Usa JWT interno firmado, almacena token Factus en BD.
+     * Retorna el token de acceso para incluir en la respuesta.
      */
-    private void saveFactusTokens(User user, FactusAuthResponseDto authResponse) {
+    @Transactional
+    protected Token saveTokensLocal(User user, FactusAuthResponseDto authResponse) {
+        LocalDateTime accessTokenExpiresAt = LocalDateTime.now().plusHours(24);
 
-        LocalDateTime accessTokenExpiresAt = LocalDateTime.now().plusSeconds(authResponse.getExpires_in());
+        String internalAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail());
 
-        // Guardar access token
         Token accessToken = Token.builder()
                 .user(user)
-                .token(authResponse.getAccess_token())
+                .token(internalAccessToken)
+                .factusToken(authResponse.getAccess_token())
                 .tokenType(Token.TokenType.ACCESS)
                 .expiresAt(accessTokenExpiresAt)
                 .revoked(false)
@@ -224,16 +193,26 @@ public class AuthService {
 
         tokenRepository.save(accessToken);
 
-        // Guardar refresh token
+        String internalRefreshToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail());
+
         Token refreshToken = Token.builder()
                 .user(user)
-                .token(authResponse.getRefresh_token())
+                .token(internalRefreshToken)
+                .factusToken(authResponse.getRefresh_token())
                 .tokenType(Token.TokenType.REFRESH)
-                .expiresAt(LocalDateTime.now().plusDays(30)) // Refresh tokens duran más
+                .expiresAt(LocalDateTime.now().plusDays(30))
                 .revoked(false)
                 .build();
 
         tokenRepository.save(refreshToken);
+
+        return accessToken;
+    }
+
+    @Transactional
+    protected Token revokeAndSaveTokensLocal(User user, FactusAuthResponseDto authResponse) {
+        revokeAllUserTokens(user);
+        return saveTokensLocal(user, authResponse);
     }
 
     /**
@@ -252,17 +231,19 @@ public class AuthService {
     }
 
     /**
-     * Construye respuesta login.
+     * Construye respuesta login con tokens internos JWT.
+     * Nunca expone tokens de Factus al cliente.
      */
-    private LoginResponseDto buildLoginResponse(
-            User user,
-            FactusAuthResponseDto token
-    ) {
+    private LoginResponseDto buildLoginResponse(User user, Token accessToken) {
+        Token refreshToken = tokenRepository.findLatestRefreshTokenByUser(user)
+                .orElseThrow(() -> new UnauthorizedException("Refresh token no encontrado"));
+
+        long expiresIn = ChronoUnit.SECONDS.between(LocalDateTime.now(), accessToken.getExpiresAt());
 
         return LoginResponseDto.builder()
-                .accessToken(token.getAccess_token())
-                .refreshToken(token.getRefresh_token())
-                .expiresIn(token.getExpires_in())
+                .accessToken(accessToken.getToken())
+                .refreshToken(refreshToken.getToken())
+                .expiresIn(expiresIn)
                 .user(userMapper.toDto(user))
                 .build();
     }

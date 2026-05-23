@@ -1,7 +1,6 @@
 package com.factusimple.api.plan.service;
 
-import com.factusimple.api.infrastructure.exception.ApiException;
-import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
+import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.plan.dto.PlanRequestDto;
 import com.factusimple.api.plan.dto.PlanResponseDto;
 import com.factusimple.api.plan.entity.Plan;
@@ -26,11 +25,8 @@ public class PlanService {
 
     @Transactional
     public PlanResponseDto createPlan(PlanRequestDto requestDto) {
-        log.info("Creating plan: {}", requestDto.getName());
-
-        // Check if plan name already exists
         if (planRepository.findByName(requestDto.getName()).isPresent()) {
-            throw new ApiException(409, "Plan with name '" + requestDto.getName() + "' already exists");
+            throw new ConflictException("Plan with name '" + requestDto.getName() + "' already exists");
         }
 
         Plan plan = planMapper.toEntity(requestDto);
@@ -42,8 +38,6 @@ public class PlanService {
 
     @Transactional(readOnly = true)
     public PlanResponseDto getPlan(UUID id) {
-        log.debug("Fetching plan: id={}", id);
-
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
 
@@ -68,7 +62,7 @@ public class PlanService {
         // Check if new name conflicts with another plan (if name is being changed)
         if (!plan.getName().equals(requestDto.getName()) &&
             planRepository.findByName(requestDto.getName()).isPresent()) {
-            throw new ApiException(409, "Plan with name '" + requestDto.getName() + "' already exists");
+            throw new ConflictException("Plan with name '" + requestDto.getName() + "' already exists");
         }
 
         planMapper.updateEntity(requestDto, plan);

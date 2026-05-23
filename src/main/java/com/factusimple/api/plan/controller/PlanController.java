@@ -49,20 +49,10 @@ public class PlanController {
     public ResponseEntity<ApiResponseDto<PageResponseDto<PlanResponseDto>>> listPlans(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        
+
         Pageable pageable = PageRequest.of(page, size);
         Page<PlanResponseDto> plansPage = planService.listPlans(pageable);
-        
-        PageResponseDto<PlanResponseDto> pageResponse = PageResponseDto.<PlanResponseDto>builder()
-                .content(plansPage.getContent())
-                .pageNumber(plansPage.getNumber())
-                .pageSize(plansPage.getSize())
-                .totalElements(plansPage.getTotalElements())
-                .totalPages(plansPage.getTotalPages())
-                .isLast(plansPage.isLast())
-                .build();
-
-        return ResponseEntity.ok(ApiResponseDto.success("Plans retrieved successfully", pageResponse));
+        return ResponseEntity.ok(ApiResponseDto.success("Plans retrieved successfully", PageResponseDto.from(plansPage)));
     }
 
     @PutMapping("/{id}")

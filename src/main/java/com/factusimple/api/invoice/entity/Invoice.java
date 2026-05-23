@@ -19,7 +19,10 @@ import java.util.List;
                 @Index(name = "idx_invoice_establishment_id", columnList = "establishment_id"),
                 @Index(name = "idx_invoice_customer_id", columnList = "customer_id"),
                 @Index(name = "idx_invoice_reference_code", columnList = "reference_code"),
-                @Index(name = "idx_invoice_status", columnList = "status")
+                @Index(name = "idx_invoice_status", columnList = "status"),
+                @Index(name = "idx_invoice_est_status", columnList = "establishment_id, status"),
+                @Index(name = "idx_invoice_est_customer", columnList = "establishment_id, customer_id"),
+                @Index(name = "idx_invoice_est_created", columnList = "establishment_id, created_at")
         },
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_invoice_reference_per_establishment",

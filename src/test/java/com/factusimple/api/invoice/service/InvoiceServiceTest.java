@@ -1,8 +1,6 @@
 package com.factusimple.api.invoice.service;
 
-import com.factusimple.api.customer.entity.Customer;
 import com.factusimple.api.customer.repository.CustomerRepository;
-import com.factusimple.api.establishments.entity.Establishment;
 import com.factusimple.api.establishments.service.EstablishmentService;
 import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.infrastructure.factus.client.FactusBillsClient;
@@ -14,7 +12,6 @@ import com.factusimple.api.invoice.mapper.InvoiceMapper;
 import com.factusimple.api.invoice.repository.InvoiceRepository;
 import com.factusimple.api.product.entity.Product;
 import com.factusimple.api.product.repository.ProductRepository;
-import com.factusimple.api.user.entity.User;
 import com.factusimple.api.user.repository.UserRepository;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,7 +25,6 @@ import java.time.LocalDate;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class InvoiceServiceTest {
@@ -66,7 +62,7 @@ class InvoiceServiceTest {
         void testSingleItemWithIva19Percent() {
             Invoice invoice = createInvoice();
             InvoiceItem item = createItem(
-                    new BigDecimal("100"),
+                    new BigDecimal("10"),
                     new BigDecimal("10"),
                     new BigDecimal("0")
             );
@@ -86,7 +82,7 @@ class InvoiceServiceTest {
         void testDiscountBeforeTax() {
             Invoice invoice = createInvoice();
             InvoiceItem item = createItem(
-                    new BigDecimal("100"),
+                    new BigDecimal("10"),
                     new BigDecimal("10"),
                     new BigDecimal("10")
             );
@@ -109,7 +105,7 @@ class InvoiceServiceTest {
             Invoice invoice = createInvoice();
 
             InvoiceItem item1 = createItem(
-                    new BigDecimal("100"),
+                    new BigDecimal("10"),
                     new BigDecimal("10"),
                     new BigDecimal("0")
             );
@@ -118,8 +114,8 @@ class InvoiceServiceTest {
             invoice.getItems().add(item1);
 
             InvoiceItem item2 = createItem(
-                    new BigDecimal("50"),
                     new BigDecimal("5"),
+                    new BigDecimal("10"),
                     new BigDecimal("0")
             );
             InvoiceItemTax tax2 = createTax(new BigDecimal("19"), false);
@@ -138,7 +134,7 @@ class InvoiceServiceTest {
         void testWithholdingTaxNotIncludedInTotal() {
             Invoice invoice = createInvoice();
             InvoiceItem item = createItem(
-                    new BigDecimal("100"),
+                    new BigDecimal("10"),
                     new BigDecimal("10"),
                     new BigDecimal("0")
             );
@@ -170,7 +166,7 @@ class InvoiceServiceTest {
         void testSurchargesAndAllowances() {
             Invoice invoice = createInvoice();
             InvoiceItem item = createItem(
-                    new BigDecimal("100"),
+                    new BigDecimal("10"),
                     new BigDecimal("10"),
                     new BigDecimal("0")
             );
@@ -201,7 +197,7 @@ class InvoiceServiceTest {
         void testPrepaymentsDeductedFromTotal() {
             Invoice invoice = createInvoice();
             InvoiceItem item = createItem(
-                    new BigDecimal("100"),
+                    new BigDecimal("10"),
                     new BigDecimal("10"),
                     new BigDecimal("0")
             );
@@ -227,7 +223,7 @@ class InvoiceServiceTest {
             invoice.setCashRounding(new BigDecimal("0.50"));
 
             InvoiceItem item = createItem(
-                    new BigDecimal("100"),
+                    new BigDecimal("10"),
                     new BigDecimal("10"),
                     new BigDecimal("0")
             );

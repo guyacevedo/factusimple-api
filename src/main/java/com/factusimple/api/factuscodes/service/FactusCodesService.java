@@ -10,6 +10,7 @@ import com.factusimple.api.infrastructure.factus.codes.FactusCode;
 import com.factusimple.api.infrastructure.factus.codes.FiscalResponsibilityCode;
 import com.factusimple.api.infrastructure.factus.codes.IdentityDocumentType;
 import com.factusimple.api.infrastructure.factus.codes.InvoiceCorrection;
+import com.factusimple.api.infrastructure.factus.codes.InvoiceOperationType;
 import com.factusimple.api.infrastructure.factus.codes.LegalOrgCode;
 import com.factusimple.api.infrastructure.factus.codes.PaymentFormCode;
 import com.factusimple.api.infrastructure.factus.codes.PaymentMethodCode;
@@ -55,6 +56,7 @@ public class FactusCodesService {
                     .allowanceChargeConcepts(fromEnum(AllowanceChargeConceptCode.class))
                     .identityDocumentTypes(fromEnum(IdentityDocumentType.class))
                     .legalOrgTypes(fromEnum(LegalOrgCode.class))
+                    .invoiceOperationTypes(fromEnum(InvoiceOperationType.class))
                     .fiscalResponsibilities(fromEnum(FiscalResponsibilityCode.class))
                     .productStandards(fromEnum(ProductStandardCode.class))
                     .invoiceCorrections(fromEnum(InvoiceCorrection.class))

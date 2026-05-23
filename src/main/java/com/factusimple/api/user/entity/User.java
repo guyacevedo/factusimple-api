@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "users", indexes = {
         @Index(name = "idx_user_email", columnList = "email"),
-        @Index(name = "idx_user_role_id", columnList = "role_id"),
         @Index(name = "idx_user_plan_id", columnList = "plan_id"),
         @Index(name = "idx_user_is_active", columnList = "is_active")
 })
@@ -45,8 +44,8 @@ public class User extends BaseEntity {
     @Column(length = 20)
     private String phone;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 50, nullable = false)
     private Role role;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -72,7 +71,4 @@ public class User extends BaseEntity {
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
-    public String getFullName() {
-        return firstName + " " + lastName;
-    }
 }
