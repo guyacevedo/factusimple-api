@@ -29,32 +29,37 @@ public class FactusTokenService {
         if (tokenOpt.isEmpty()) {
             throw new ApiException(502, "Token no encontrado para Factus");
         }
-        Token stored = tokenOpt.get();
-        if (!stored.isValid()) {
-            throw new ApiException(502, "Token encontrado pero revocado/expirado");
-        }
-        return stored.getToken();
+        return tokenOpt.get().getToken();
     }
 
     public void refreshAndSaveToken(User user) {
         Optional<Token> refreshTokenOpt = tokenRepository
-            .findAllByUserAndRevokedAndTokenType(user, false, Token.TokenType.REFRESH);
+            .findAllByUserAndRevokedAndTokenType(user, false, Token.TokenType.FACTUS_REFRESH);
 
-        FactusAuthResponseDto response = refreshTokenOpt.isPresent()
-            ? factusAuthClient.refreshToken(refreshTokenOpt.get().getToken())
-            : factusAuthClient.generateToken();
+        FactusAuthResponseDto response = null;
+
+        if (refreshTokenOpt.isPresent()) {
+            try {
+                response = factusAuthClient.refreshToken(refreshTokenOpt.get().getToken());
+            } catch (Exception e) {
+                log.warn("Refresh token inválido o expirado, generando nuevo token: {}", e.getMessage());
+                response = factusAuthClient.generateToken();
+            }
+        } else {
+            response = factusAuthClient.generateToken();
+        }
 
         if (response == null || response.getAccess_token() == null) {
             throw new ApiException(502, "No se pudo renovar token Factus");
         }
 
-        tokenRepository.revokeAllByUser(user);
+        tokenRepository.revokeFactusTokensByUser(user);
 
         LocalDateTime now = LocalDateTime.now();
         tokenRepository.save(Token.builder()
             .user(user)
             .token(response.getAccess_token())
-            .tokenType(Token.TokenType.ACCESS)
+            .tokenType(Token.TokenType.FACTUS_ACCESS)
             .expiresAt(now.plusSeconds(response.getExpires_in()))
             .revoked(false)
             .build());
@@ -63,7 +68,7 @@ public class FactusTokenService {
             tokenRepository.save(Token.builder()
                 .user(user)
                 .token(response.getRefresh_token())
-                .tokenType(Token.TokenType.REFRESH)
+                .tokenType(Token.TokenType.FACTUS_REFRESH)
                 .expiresAt(now.plusDays(30))
                 .revoked(false)
                 .build());
@@ -72,7 +77,7 @@ public class FactusTokenService {
     }
 
     private Optional<Token> findActiveToken(User user) {
-        return tokenRepository.findAllByUserAndRevokedAndTokenType(
-            user, false, Token.TokenType.ACCESS);
+        return tokenRepository.findByUserAndRevokedFalseAndTokenTypeAndExpiresAtAfter(
+            user, Token.TokenType.FACTUS_ACCESS, LocalDateTime.now());
     }
 }

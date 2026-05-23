@@ -54,7 +54,7 @@ CREATE TABLE tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
-    token_type VARCHAR(20) NOT NULL CHECK (token_type IN ('ACCESS', 'REFRESH')),
+    token_type VARCHAR(20) NOT NULL CHECK (token_type IN ('ACCESS', 'REFRESH', 'FACTUS_ACCESS', 'FACTUS_REFRESH')),
     factus_token TEXT,
     expires_at TIMESTAMP NOT NULL,
     revoked BOOLEAN NOT NULL DEFAULT FALSE,

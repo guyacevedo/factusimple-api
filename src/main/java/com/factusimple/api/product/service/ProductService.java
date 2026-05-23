@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
 import java.util.UUID;
 
 @Service
@@ -28,6 +29,7 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final EstablishmentService establishmentService;
     private final UserRepository userRepository;
+    private final EntityManager entityManager;
 
     @Transactional
     public ProductResponseDto create(UUID userId, ProductRequestDto requestDto) {
@@ -49,6 +51,7 @@ public class ProductService {
         }
 
         Product saved = productRepository.save(product);
+        entityManager.flush();
 
         // Atomic increment: if limit reached, returns 0 (no update)
         int updated = userRepository.incrementProductsCountIfBelowLimit(userId, user.getPlan().getMaxProducts());

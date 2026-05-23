@@ -14,21 +14,21 @@ import java.util.UUID;
 @Repository
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
-    @EntityGraph(attributePaths = {"customer", "items", "payments", "prepayments", "allowanceCharges"})
+    @EntityGraph(attributePaths = {"customer"})
     Optional<Invoice> findByIdAndEstablishmentId(UUID id, UUID establishmentId);
 
-    @EntityGraph(attributePaths = {"customer", "items", "payments", "prepayments", "allowanceCharges"})
+    @EntityGraph(attributePaths = {"customer"})
     Page<Invoice> findByEstablishmentId(UUID establishmentId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"customer", "items", "payments", "prepayments", "allowanceCharges"})
+    @EntityGraph(attributePaths = {"customer"})
     Page<Invoice> findByEstablishmentIdAndStatus(
             UUID establishmentId, InvoiceStatus status, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"customer", "items", "payments", "prepayments", "allowanceCharges"})
+    @EntityGraph(attributePaths = {"customer"})
     Page<Invoice> findByEstablishmentIdAndCustomerId(
             UUID establishmentId, UUID customerId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"customer", "items", "payments", "prepayments", "allowanceCharges"})
+    @EntityGraph(attributePaths = {"customer"})
     Page<Invoice> findByEstablishmentIdAndStatusAndCustomerId(
             UUID establishmentId, InvoiceStatus status, UUID customerId, Pageable pageable);
 

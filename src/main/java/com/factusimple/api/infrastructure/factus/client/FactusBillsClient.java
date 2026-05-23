@@ -95,19 +95,33 @@ public class FactusBillsClient {
     }
 
     private Map<String, Object> factusUnavailableMapFallback(Exception ex) {
-        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+        String message = extractErrorMessage(ex);
+        throw new ApiException(503, message, "FACTUS_CIRCUIT_OPEN");
     }
 
     private FactusBillResult factusUnavailableResultFallback(Exception ex) {
-        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+        String message = extractErrorMessage(ex);
+        throw new ApiException(503, message, "FACTUS_CIRCUIT_OPEN");
     }
 
     private byte[] factusUnavailableByteArrayFallback(Exception ex) {
-        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+        String message = extractErrorMessage(ex);
+        throw new ApiException(503, message, "FACTUS_CIRCUIT_OPEN");
     }
 
     private void factusUnavailableVoidFallback(Exception ex) {
-        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+        String message = extractErrorMessage(ex);
+        throw new ApiException(503, message, "FACTUS_CIRCUIT_OPEN");
+    }
+
+    private String extractErrorMessage(Exception ex) {
+        if (ex instanceof ApiException apiEx) {
+            return apiEx.getMessage();
+        }
+        if (ex != null && ex.getMessage() != null) {
+            return ex.getMessage();
+        }
+        return "Factus no disponible temporalmente, reintente en unos minutos";
     }
 
     // ----- Business Logic -----
@@ -202,7 +216,7 @@ public class FactusBillsClient {
             pm.put("payment_method_code", p.getPaymentMethodCode());
             pm.put("amount", p.getAmount());
             if (p.getReferenceCode() != null) pm.put("reference_code", p.getReferenceCode());
-            if (p.getDueDate() != null) pm.put("payment_due_date", p.getDueDate().toString());
+            if (p.getDueDate() != null) pm.put("due_date", p.getDueDate().toString());
             paymentsList.add(pm);
         }
         return paymentsList;

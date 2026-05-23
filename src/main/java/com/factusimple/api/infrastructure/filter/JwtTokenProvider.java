@@ -36,6 +36,17 @@ public class JwtTokenProvider {
                 .sign(Algorithm.HMAC256(jwtSecret.getBytes(StandardCharsets.UTF_8)));
     }
 
+    public String generateRefreshToken(UUID userId, String email) {
+        Date expiresAt = new Date(System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000));
+
+        return JWT.create()
+                .withSubject(email)
+                .withClaim("userId", userId.toString())
+                .withIssuedAt(new Date())
+                .withExpiresAt(expiresAt)
+                .sign(Algorithm.HMAC256(jwtSecret.getBytes(StandardCharsets.UTF_8)));
+    }
+
     public boolean validateToken(String token) {
         try {
             getAlgorithm().verify(JWT.decode(token));

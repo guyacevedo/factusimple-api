@@ -42,6 +42,7 @@ public class AuthService {
     /**
      * Registro de usuario.
      */
+    @Transactional
     public LoginResponseDto register(RegisterRequestDto request) {
         createUserLocal(request);
         User user = userRepository.findByEmail(request.getEmail())
@@ -86,6 +87,7 @@ public class AuthService {
     /**
      * Inicio de sesion
      */
+    @Transactional
     public LoginResponseDto login(LoginRequestDto request) {
         User user = validateCredentialsLocal(request);
 
@@ -119,6 +121,7 @@ public class AuthService {
     /**
      * Renovar access token usando refresh token.
      */
+    @Transactional
     public LoginResponseDto refreshToken(RefreshTokenRequestDto request) {
         User user = validateRefreshTokenLocal(request.getRefreshToken());
 
@@ -193,7 +196,7 @@ public class AuthService {
 
         tokenRepository.save(accessToken);
 
-        String internalRefreshToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail());
+        String internalRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail());
 
         Token refreshToken = Token.builder()
                 .user(user)

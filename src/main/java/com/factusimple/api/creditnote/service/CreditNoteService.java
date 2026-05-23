@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +43,7 @@ public class CreditNoteService {
     private final UserRepository userRepository;
     private final EstablishmentService establishmentService;
     private final FactusCreditNotesClient factusCreditNotesClient;
+    private final EntityManager entityManager;
 
     @Transactional
     public CreditNoteResponseDto create(UUID userId, CreditNoteRequestDto dto) {
@@ -102,6 +104,7 @@ public class CreditNoteService {
         }
 
         creditNote = creditNoteRepository.save(creditNote);
+        entityManager.flush();
         syncToFactusSafely(user, creditNote);
 
         return creditNoteMapper.toDto(creditNoteRepository.save(creditNote));
@@ -141,11 +144,7 @@ public class CreditNoteService {
             creditNoteRepository.save(creditNote);
         } catch (Exception e) {
             creditNote.setStatus(CreditNoteStatus.ERROR);
-            String errorMsg = e.getMessage();
-            if (errorMsg != null && errorMsg.length() > 2000) {
-                errorMsg = errorMsg.substring(0, 2000);
-            }
-            creditNote.setFactusError(errorMsg);
+            creditNote.setFactusError(truncate(extractDetailedError(e)));
             creditNoteRepository.save(creditNote);
             log.error("Error syncing credit note with Factus: {}", e.getMessage(), e);
         }
@@ -209,7 +208,7 @@ public class CreditNoteService {
         return creditNoteMapper.toDto(creditNote);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] downloadPdf(UUID userId, UUID cnId) {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
         CreditNote creditNote = requireOwned(cnId, establishment.getId());
@@ -223,7 +222,7 @@ public class CreditNoteService {
         return factusCreditNotesClient.downloadPdf(user, creditNote.getFactusNumber());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] downloadXml(UUID userId, UUID cnId) {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
         CreditNote creditNote = requireOwned(cnId, establishment.getId());
@@ -249,5 +248,23 @@ public class CreditNoteService {
     private CreditNote requireOwned(UUID cnId, UUID establishmentId) {
         return creditNoteRepository.findByIdAndEstablishmentId(cnId, establishmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("CreditNote", "id", cnId.toString()));
+    }
+
+    private static String truncate(String value) {
+        if (value == null) return null;
+        return value.length() <= 2000 ? value : value.substring(0, 2000);
+    }
+
+    private static String extractDetailedError(Exception ex) {
+        if (ex instanceof com.factusimple.api.infrastructure.exception.ApiException apiEx) {
+            return apiEx.getMessage();
+        }
+        if (ex != null && ex.getMessage() != null && !ex.getMessage().isEmpty()) {
+            return ex.getMessage();
+        }
+        if (ex != null && ex.getCause() != null && ex.getCause().getMessage() != null) {
+            return ex.getCause().getMessage();
+        }
+        return ex != null ? ex.getClass().getSimpleName() : "Unknown error";
     }
 }

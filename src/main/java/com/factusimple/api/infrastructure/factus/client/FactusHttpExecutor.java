@@ -30,6 +30,7 @@ public class FactusHttpExecutor {
     public <T> T executeWithRetry(User user, Supplier<T> operation) {
         Throwable last = null;
         boolean tokenRefreshed = false;
+
         for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
                 return operation.get();
@@ -38,8 +39,13 @@ public class FactusHttpExecutor {
                     throw new ApiException(502, "Token Factus inválido tras refresh");
                 }
                 log.warn("Token Factus expirado (401), refrescando...");
-                factusTokenService.refreshAndSaveToken(user);
-                tokenRefreshed = true;
+                try {
+                    factusTokenService.refreshAndSaveToken(user);
+                    tokenRefreshed = true;
+                } catch (Exception refreshEx) {
+                    log.error("Error al refrescar token Factus: {}", refreshEx.getMessage());
+                    throw new ApiException(502, "No se pudo refrescar token Factus: " + refreshEx.getMessage());
+                }
             } catch (HttpClientErrorException e) {
                 String body = e.getResponseBodyAsString();
                 log.warn("Factus rechazó la petición ({}): {}", e.getStatusCode(), body);
@@ -49,18 +55,13 @@ public class FactusHttpExecutor {
                 last = e;
                 log.warn("Reintento {}/{} a Factus falló: {}", attempt + 1, MAX_RETRIES, e.getMessage());
                 if (attempt < MAX_RETRIES - 1) {
-                    try {
-                        Thread.sleep(INITIAL_BACKOFF_MS * (1L << attempt));
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new ApiException(502, "Interrumpido durante retry a Factus");
-                    }
+                    applyBackoff(attempt);
                 }
             }
         }
+
         throw new ApiException(502,
-                "Factus inalcanzable tras " + MAX_RETRIES + " intentos: "
-                        + last.getMessage());
+                "Factus inalcanzable tras " + MAX_RETRIES + " intentos: " + last.getMessage());
     }
 
     public <T> T postJson(User user, String path, Object body, Class<T> responseType) {
@@ -101,9 +102,8 @@ public class FactusHttpExecutor {
                 .toBodilessEntity();
     }
 
-    @SuppressWarnings("unchecked")
     public byte[] downloadAsset(User user, String path, String base64Field) {
-        Map<String, Object> response = executeWithRetry(user, () -> getJson(user, path, Map.class));
+        Map<?, ?> response = executeWithRetry(user, () -> getJson(user, path, Map.class));
         Object data = response.get("data");
         if (data instanceof Map<?, ?> dataMap) {
             Object base64 = dataMap.get(base64Field);
@@ -112,6 +112,15 @@ public class FactusHttpExecutor {
             }
         }
         throw new ApiException(502, "Respuesta de Factus sin campo '" + base64Field + "'");
+    }
+
+    private void applyBackoff(int attempt) {
+        try {
+            Thread.sleep(INITIAL_BACKOFF_MS * (1L << attempt));
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new ApiException(502, "Interrumpido durante retry a Factus");
+        }
     }
 
     private int asGatewayStatus(HttpStatusCode code) {

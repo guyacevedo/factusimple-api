@@ -1,6 +1,7 @@
 package com.factusimple.api.invoice.dto;
 
 import com.factusimple.api.infrastructure.factus.codes.InvoiceDocumentType;
+import com.factusimple.api.infrastructure.factus.codes.InvoiceOperationType;
 import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -24,8 +25,8 @@ public class InvoiceRequestDto {
     @NotBlank
     private String referenceCode;
 
-    @ValidFactusCode(InvoiceDocumentType.class)
-    private String documentType;
+    @ValidFactusCode(InvoiceOperationType.class)
+    private String operationType;
 
     private Boolean sendEmail;
 

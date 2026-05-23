@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Arrays;
@@ -54,6 +55,7 @@ public class InvoiceService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final FactusBillsClient factusBillsClient;
+    private final EntityManager entityManager;
 
     @Transactional
     public InvoiceResponseDto create(UUID userId, InvoiceRequestDto requestDto) {
@@ -99,9 +101,8 @@ public class InvoiceService {
         invoice.setEstablishment(establishment);
         invoice.setCustomer(customer);
         invoice.setStatus(InvoiceStatus.PENDING);
-        invoice.setDocumentType(
-                requestDto.getDocumentType() != null ? requestDto.getDocumentType() : InvoiceDocumentType.FACTURA_VENTA.getCode());
-        invoice.setOperationType(InvoiceOperationType.ESTANDAR.getCode());
+        invoice.setDocumentType(InvoiceDocumentType.FACTURA_VENTA.getCode());
+        invoice.setOperationType(requestDto.getOperationType() != null ? requestDto.getOperationType() :InvoiceOperationType.ESTANDAR.getCode());
         invoice.setSendEmail((requestDto.getSendEmail() != null) && requestDto.getSendEmail());
         attachItems(invoice, requestDto.getItems(), establishment.getId());
         attachPayments(invoice, requestDto.getPayments());
@@ -112,6 +113,7 @@ public class InvoiceService {
         validateStockAvailability(invoice.getItems());
 
         Invoice saved = invoiceRepository.save(invoice);
+        entityManager.flush();
         deductStock(saved.getItems());
 
         log.info("Factura creada: id={}, referenceCode={}, total={}",
@@ -186,13 +188,13 @@ public class InvoiceService {
         userRepository.decrementInvoiceCount(userId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] downloadPdf(UUID userId, UUID invoiceId) {
         Invoice invoice = requireValidated(userId, invoiceId);
         return factusBillsClient.downloadPdf(invoice.getEstablishment().getUser(), invoice.getFactusNumber());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] downloadXml(UUID userId, UUID invoiceId) {
         Invoice invoice = requireValidated(userId, invoiceId);
         return factusBillsClient.downloadXml(invoice.getEstablishment().getUser(), invoice.getFactusNumber());
@@ -232,9 +234,9 @@ public class InvoiceService {
             log.info("Factura sincronizada con Factus: id={}, factusNumber={}, status={}",
                     invoice.getId(), invoice.getFactusNumber(), invoice.getStatus());
         } catch (Exception e) {
-            log.error("Sync con Factus falló para invoice {}: {}", invoice.getId(), e.getMessage());
+            log.error("Sync con Factus falló para invoice {}: {}", invoice.getId(), e.getMessage(), e);
             invoice.setStatus(InvoiceStatus.ERROR);
-            invoice.setFactusError(truncate(e.getMessage()));
+            invoice.setFactusError(truncate(extractDetailedError(e)));
             saveInvoiceInTransaction(invoice);
         }
     }
@@ -256,6 +258,19 @@ public class InvoiceService {
     private static String truncate(String value) {
         if (value == null) return null;
         return value.length() <= 2000 ? value : value.substring(0, 2000);
+    }
+
+    private static String extractDetailedError(Exception ex) {
+        if (ex instanceof ApiException apiEx) {
+            return apiEx.getMessage();
+        }
+        if (ex != null && ex.getMessage() != null && !ex.getMessage().isEmpty()) {
+            return ex.getMessage();
+        }
+        if (ex != null && ex.getCause() != null && ex.getCause().getMessage() != null) {
+            return ex.getCause().getMessage();
+        }
+        return ex != null ? ex.getClass().getSimpleName() : "Unknown error";
     }
 
     @Transactional(readOnly = true)

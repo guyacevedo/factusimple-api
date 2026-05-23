@@ -22,7 +22,9 @@ public class Token extends BaseEntity {
 
     public enum TokenType {
         ACCESS,
-        REFRESH
+        REFRESH,
+        FACTUS_ACCESS,
+        FACTUS_REFRESH
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
