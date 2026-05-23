@@ -5,11 +5,7 @@ public enum InvoiceOperationType implements FactusCode {
 
     ESTANDAR("10"),
     MANDATOS("11"),
-    TRANSPORTE("12"),
-    SS_CUFE("SS-CUFE"),
-    SS_REPORTE("SS-Reporte"),
-    SS_SIN_APORTE("SS-SinAporte"),
-    SS_RECAUDO("SS-Recaudo");
+    TRANSPORTE("12");
 
     private final String code;
 

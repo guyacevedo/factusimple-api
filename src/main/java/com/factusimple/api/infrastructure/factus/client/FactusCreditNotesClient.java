@@ -1,18 +1,15 @@
 package com.factusimple.api.infrastructure.factus.client;
 
-import com.factusimple.api.auth.entity.Token;
-import com.factusimple.api.auth.repository.TokenRepository;
 import com.factusimple.api.creditnote.entity.CreditNote;
 import com.factusimple.api.creditnote.entity.CreditNoteAllowanceCharge;
 import com.factusimple.api.creditnote.entity.CreditNoteItem;
 import com.factusimple.api.creditnote.entity.CreditNotePayment;
 import com.factusimple.api.infrastructure.exception.ApiException;
 import com.factusimple.api.user.entity.User;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.*;
 
@@ -21,77 +18,63 @@ import java.util.*;
 @Slf4j
 public class FactusCreditNotesClient {
 
-    private final RestClient restClient;
-    private final TokenRepository tokenRepository;
-    private final FactusAuthClient factusAuthClient;
+    private final FactusHttpExecutor executor;
 
 
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableMapFallback")
     public Map<String, Object> createAtFactus(CreditNote creditNote) {
         User user = creditNote.getEstablishment().getUser();
-        String token = getToken(user);
         Map<String, Object> payload = buildPayload(creditNote);
-        return restClient.post()
-                .uri( "/v2/credit-notes/validate")
-                .header("Authorization", "Bearer " + token)
-                .header("Content-Type", "application/json")
-                .body(payload)
-                .retrieve()
-                .body(Map.class);
+        return executor.executeWithRetry(user, () -> executor.postJson(user, "/v2/credit-notes/validate", payload, Map.class));
     }
 
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableResultFallback")
     public FactusCreditNoteResult getDetailsFromFactus(User user, String number) {
-        String token = getToken(user);
-        Map<String, Object> response = restClient.method(HttpMethod.GET)
-                .uri( "/v2/credit-notes/{number}", number)
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .body(Map.class);
+        Map<String, Object> response = executor.executeWithRetry(user, () -> executor.getJson(user, "/v2/credit-notes/{number}", Map.class, number));
         return parseResponse(response);
     }
 
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableVoidFallback")
     public void deleteAtFactus(User user, String referenceCode) {
-        try {
-            String token = getToken(user);
-            restClient.method(HttpMethod.DELETE)
-                    .uri( "/v2/credit-notes/reference/{referenceCode}", referenceCode)
-                    .header("Authorization", "Bearer " + token)
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (Exception e) {
-            log.warn("Failed to delete credit note from Factus (reference: {}): {}", referenceCode, e.getMessage());
-        }
+        executor.executeWithRetry(user, () -> {
+            executor.deleteJson(user, "/v2/credit-notes/reference/{referenceCode}", referenceCode);
+            return null;
+        });
     }
 
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableByteArrayFallback")
     public byte[] downloadPdf(User user, String number) {
-        String token = getToken(user);
-        byte[] pdf =restClient.method(HttpMethod.GET)
-                .uri( "/v2/credit-notes/{number}/download-pdf", number)
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .body(byte[].class);
-        return pdf != null ? pdf : new byte[0];
+        return executor.executeWithRetry(user, () -> {
+            byte[] pdf = executor.getJson(user, "/v2/credit-notes/{number}/download-pdf", byte[].class, number);
+            return pdf != null ? pdf : new byte[0];
+        });
     }
 
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableByteArrayFallback")
     public byte[] downloadXml(User user, String number) {
-        String token = getToken(user);
-        byte[] xml = restClient.method(HttpMethod.GET)
-                .uri( "/v2/credit-notes/{number}/download-xml", number)
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .body(byte[].class);
-        return xml != null ? xml : new byte[0];
+        return executor.executeWithRetry(user, () -> {
+            byte[] xml = executor.getJson(user, "/v2/credit-notes/{number}/download-xml", byte[].class, number);
+            return xml != null ? xml : new byte[0];
+        });
     }
 
-    public static FactusCreditNoteResult parseResponse(Map<String, Object> response) {
-        if (response == null) {
-            return new FactusCreditNoteResult(null, null, null, false);
-        }
-        String number = (String) response.get("number");
-        String cufe = (String) response.get("cufe");
-        String xmlUrl = (String) response.get("xml_url");
-        Boolean validated = (Boolean) response.getOrDefault("validated", false);
-        return new FactusCreditNoteResult(number, cufe, xmlUrl, validated != null && validated);
+    private Map<String, Object> factusUnavailableMapFallback(Exception ex) {
+        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
     }
+
+    private FactusCreditNoteResult factusUnavailableResultFallback(Exception ex) {
+        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+    }
+
+    private byte[] factusUnavailableByteArrayFallback(Exception ex) {
+        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+    }
+
+    private void factusUnavailableVoidFallback(Exception ex) {
+        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+    }
+
+    // ----- Business Logic -----
 
     private Map<String, Object> buildPayload(CreditNote creditNote) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -201,34 +184,84 @@ public class FactusCreditNotesClient {
         return payload;
     }
 
-    private String getToken(User user) {
-        Optional<Token> tokenOpt = tokenRepository.findAllByUserAndRevokedAndTokenType(user, false, Token.TokenType.ACCESS);
-
-        if (tokenOpt.isEmpty()) {
-            refreshAndSaveToken(user);
-            tokenOpt = tokenRepository.findAllByUserAndRevokedAndTokenType(user, false, Token.TokenType.ACCESS);
+    public static FactusCreditNoteResult parseResponse(Map<String, Object> response) {
+        if (response == null) {
+            return new FactusCreditNoteResult(null, null, null, false);
         }
 
-        if (tokenOpt.isEmpty()) {
-            throw new ApiException(502, "Token no encontrado para Factus");
+        FactusCreditNoteResult result = new FactusCreditNoteResult(null, null, null, false);
+
+        // Intentar extraer de response.data.credit_note
+        Object data = response.get("data");
+        if (data instanceof Map<?, ?> dataMap) {
+            Object creditNote = dataMap.get("credit_note");
+            if (creditNote instanceof Map<?, ?> creditNoteMap) {
+                result = extractFields(creditNoteMap, result);
+            }
         }
 
-        return tokenOpt.get().getToken();
+        // Si no encontramos número, intentar response.data.credit-note
+        if (result.number() == null) {
+            Object data2 = response.get("data");
+            if (data2 instanceof Map<?, ?> dataMap) {
+                Object creditNote = dataMap.get("credit-note");
+                if (creditNote instanceof Map<?, ?> creditNoteMap) {
+                    result = extractFields(creditNoteMap, result);
+                }
+            }
+        }
+
+        // Intentar directamente en response.credit_note
+        if (result.number() == null) {
+            Object creditNote = response.get("credit_note");
+            if (creditNote instanceof Map<?, ?> creditNoteMap) {
+                result = extractFields(creditNoteMap, result);
+            }
+        }
+
+        // Intentar directamente en response (top-level)
+        if (result.number() == null) {
+            result = extractFields(response, result);
+        }
+
+        // Intentar extraer xmlUrl de links si no lo encontramos
+        if (result.xmlUrl() == null) {
+            Object links = response.get("links");
+            if (links instanceof Map<?, ?> linksMap) {
+                Object pubUrl = linksMap.get("public_url");
+                if (pubUrl != null) {
+                    result = new FactusCreditNoteResult(result.number(), result.cufe(), pubUrl.toString(), result.validated());
+                }
+            }
+        }
+
+        return result;
     }
 
-    private void refreshAndSaveToken(User user) {
-        var authResponse = factusAuthClient.generateToken();
-        if (authResponse == null || authResponse.getAccess_token() == null) {
-            throw new ApiException(502, "No se pudo refrescar el token de Factus");
+    private static FactusCreditNoteResult extractFields(Map<?, ?> map, FactusCreditNoteResult result) {
+        String number = result.number();
+        String cufe = result.cufe();
+        String xmlUrl = result.xmlUrl();
+        boolean validated = result.validated();
+
+        Object numObj = map.get("number");
+        if (numObj != null) number = numObj.toString();
+
+        Object cufeObj = map.get("cufe");
+        if (cufeObj != null) cufe = cufeObj.toString();
+
+        Object validatedObj = map.get("is_validated");
+        if (validatedObj instanceof Boolean v) {
+            validated = v;
+        } else {
+            Object validatedAlt = map.get("validated");
+            if (validatedAlt instanceof Boolean v) validated = v;
         }
-        tokenRepository.revokeAllByUser(user);
-        Token newToken = new Token();
-        newToken.setUser(user);
-        newToken.setToken(authResponse.getAccess_token());
-        newToken.setTokenType(Token.TokenType.ACCESS);
-        newToken.setRevoked(false);
-        tokenRepository.save(newToken);
-        log.info("Token Factus refrescado para usuario: {}", user.getEmail());
+
+        Object xmlUrlObj = map.get("xml_url");
+        if (xmlUrlObj != null) xmlUrl = xmlUrlObj.toString();
+
+        return new FactusCreditNoteResult(number, cufe, xmlUrl, validated);
     }
 
     public record FactusCreditNoteResult(String number, String cufe, String xmlUrl, boolean validated) {}

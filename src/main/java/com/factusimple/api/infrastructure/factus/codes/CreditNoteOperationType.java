@@ -3,8 +3,7 @@ package com.factusimple.api.infrastructure.factus.codes;
 /** Tipo de operación para notas de credito (FACTUS). */
 public enum CreditNoteOperationType implements FactusCode {
 
-    CON_REFERENCIA("20"),
-    SIN_REFERENCIA("22");
+    CON_REFERENCIA("20");
 
     private final String code;
 

@@ -1,5 +1,6 @@
 package com.factusimple.api.infrastructure.factus.client;
 
+import com.factusimple.api.infrastructure.exception.UnauthorizedException;
 import com.factusimple.api.infrastructure.factus.config.FactusProperties;
 import com.factusimple.api.infrastructure.factus.dto.FactusAuthResponseDto;
 import lombok.RequiredArgsConstructor;
@@ -38,16 +39,17 @@ public class FactusAuthClient {
                 log.info("Token generado exitosamente para Factus");
                 return response;
             }
+            throw new UnauthorizedException("Respuesta vacía de Factus al generar token");
+        } catch (UnauthorizedException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Error generando token: {}", e.getMessage());
+            log.error("Error generando token de Factus: {}", e.getMessage(), e);
+            throw new UnauthorizedException("No fue posible conectar con Factus para generar token: " + e.getMessage());
         }
-
-        return null;
     }
 
-    // Generar Refresh Token
     public FactusAuthResponseDto refreshToken(String refreshToken) {
-    HttpHeaders headers = new HttpHeaders();
+        HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         String requestBody = "grant_type=refresh_token&client_id=" + factusProperties.clientId() +
@@ -56,7 +58,7 @@ public class FactusAuthClient {
 
         try {
             FactusAuthResponseDto response = restClient.post()
-                    .uri( "/oauth/token")
+                    .uri("/oauth/token")
                     .headers(h -> h.addAll(headers))
                     .body(requestBody)
                     .retrieve()
@@ -66,12 +68,13 @@ public class FactusAuthClient {
                 log.info("Token refrescado exitosamente");
                 return response;
             }
+            throw new UnauthorizedException("Respuesta vacía de Factus al refrescar token");
+        } catch (UnauthorizedException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Error refrescando token: {}", e.getMessage());
+            log.error("Error refrescando token de Factus: {}", e.getMessage(), e);
+            throw new UnauthorizedException("No fue posible conectar con Factus para refrescar token: " + e.getMessage());
         }
-
-        return null;
     }
-
 
 }

@@ -1,7 +1,5 @@
 package com.factusimple.api.infrastructure.factus.client;
 
-import com.factusimple.api.auth.entity.Token;
-import com.factusimple.api.auth.repository.TokenRepository;
 import com.factusimple.api.customer.entity.Customer;
 import com.factusimple.api.establishments.entity.Establishment;
 import com.factusimple.api.infrastructure.exception.ApiException;
@@ -12,23 +10,15 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
 
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
  * Cliente de la API Factus. Encapsula:
- *  - Autenticación (obtiene token de la bd).
  *  - Construcción del payload /v2/bills/validate desde la entidad Invoice.
- *  - Reintentos con backoff exponencial.
  *  - Decodificación de PDF/XML base64.
+ *  - Reintentos y autenticación delegados a FactusHttpExecutor.
  *
  * Las llamadas son síncronas y deben invocarse desde el InvoiceService
  */
@@ -37,12 +27,7 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 public class FactusBillsClient {
 
-    private static final int MAX_RETRIES = 3;
-    private static final long INITIAL_BACKOFF_MS = 500L;
-
-    private final RestClient restClient;
-    private final TokenRepository tokenRepository;
-    private final FactusAuthClient factusAuthClient;
+    private final FactusHttpExecutor executor;
 
     /**
      * Crea la factura en Factus y devuelve la respuesta cruda
@@ -50,12 +35,12 @@ public class FactusBillsClient {
      * Lanza ApiException si tras los reintentos no hubo éxito.
      */
     @SuppressWarnings("unchecked")
-    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableFallback")
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableMapFallback")
     public Map<String, Object> createBillAtFactus(Invoice invoice) {
         Map<String, Object> payload = buildPayload(invoice);
         User user = invoice.getEstablishment().getUser();
         log.debug("Enviando factura a Factus: referenceCode={} creada por usuario: {}", invoice.getReferenceCode(), user.getEmail());
-        return executeWithRetry(user, () -> postJson(user,"/v2/bills/validate", payload, Map.class));
+        return executor.executeWithRetry(user, () -> executor.postJson(user, "/v2/bills/validate", payload, Map.class));
     }
 
     /**
@@ -64,9 +49,9 @@ public class FactusBillsClient {
      * Lanza ApiException si tras los reintentos no hubo éxito.
      */
     @SuppressWarnings("unchecked")
-    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableFallback")
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableMapFallback")
     public Map<String, Object> getBillFromFactus(User user, String factusNumber) {
-        return executeWithRetry(user, () -> getJson(user, "/v2/bills/" + factusNumber, Map.class));
+        return executor.executeWithRetry(user, () -> executor.getJson(user, "/v2/bills/" + factusNumber, Map.class));
     }
 
     /**
@@ -74,7 +59,7 @@ public class FactusBillsClient {
      * Estructura esperada: response.data = { number, cufe, is_validated, ... }
      */
     @SuppressWarnings("unchecked")
-    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableFallback")
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableResultFallback")
     public FactusBillResult getBillDetailsFromFactus(User user, String factusNumber) {
         Map<String, Object> response = getBillFromFactus(user, factusNumber);
 
@@ -91,42 +76,41 @@ public class FactusBillsClient {
         return result;
     }
 
-    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableFallback")
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableByteArrayFallback")
     public byte[] downloadPdf(User user, String factusNumber) {
-        return downloadAsset(user,"/v2/bills/" + factusNumber + "/download-pdf", "pdf_base_64_encoded");
+        return executor.executeWithRetry(user, () -> executor.downloadAsset(user, "/v2/bills/" + factusNumber + "/download-pdf", "pdf_base_64_encoded"));
     }
 
-    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableFallback")
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableByteArrayFallback")
     public byte[] downloadXml(User user, String factusNumber) {
-        return downloadAsset(user, "/v2/bills/" + factusNumber + "/download-xml", "xml_base_64_encoded");
+        return executor.executeWithRetry(user, () -> executor.downloadAsset(user, "/v2/bills/" + factusNumber + "/download-xml", "xml_base_64_encoded"));
     }
 
-    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableFallback")
+    @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableVoidFallback")
     public void deleteBillAtFactus(User user, String referenceCode) {
-        executeWithRetry(user, () -> {
-            deleteJson(user, "/v2/bills/destroy/reference/" + referenceCode);
+        executor.executeWithRetry(user, () -> {
+            executor.deleteJson(user, "/v2/bills/destroy/reference/" + referenceCode);
             return null;
         });
     }
 
-    private Object factusUnavailableFallback(Exception ex) {
+    private Map<String, Object> factusUnavailableMapFallback(Exception ex) {
         throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
     }
 
-    // ----- Helpers -----
-
-    @SuppressWarnings("unchecked")
-    private byte[] downloadAsset(User user, String path, String base64Field) {
-        Map<String, Object> response = executeWithRetry(user, () -> getJson(user, path, Map.class));
-        Object data = response.get("data");
-        if (data instanceof Map<?, ?> dataMap) {
-            Object base64 = dataMap.get(base64Field);
-            if (base64 != null) {
-                return Base64.getDecoder().decode(base64.toString());
-            }
-        }
-        throw new ApiException(502, "Respuesta de Factus sin campo '" + base64Field + "'");
+    private FactusBillResult factusUnavailableResultFallback(Exception ex) {
+        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
     }
+
+    private byte[] factusUnavailableByteArrayFallback(Exception ex) {
+        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+    }
+
+    private void factusUnavailableVoidFallback(Exception ex) {
+        throw new ApiException(503, "Factus no disponible temporalmente, reintente en unos minutos", "FACTUS_CIRCUIT_OPEN");
+    }
+
+    // ----- Business Logic -----
 
     /**
      * Construye el payload de /v2/bills/validate.
@@ -308,113 +292,6 @@ public class FactusBillsClient {
             customerMap.put("municipality_id", customer.getMunicipalityCode());
         }
         return customerMap;
-    }
-
-    private <T> T executeWithRetry(User user, Supplier<T> action) {
-        Throwable last = null;
-        boolean tokenRefreshed = false;
-        for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            try {
-                return action.get();
-            } catch (HttpClientErrorException.Unauthorized ex) {
-                if (tokenRefreshed) {
-                    throw new ApiException(502, "Token Factus inválido tras refresh");
-                }
-                log.warn("Token Factus expirado (401), refrescando...");
-                refreshAndSaveToken(user);
-                tokenRefreshed = true;
-                // Sin backoff, reintentar inmediatamente
-            } catch (HttpClientErrorException e) {
-                // Otros 4xx: no tiene sentido reintentar (payload inválido, etc.)
-                String body = e.getResponseBodyAsString();
-                log.warn("Factus rechazó la petición ({}): {}", e.getStatusCode(), body);
-                throw new ApiException(asGatewayStatus(e.getStatusCode()),
-                        "Factus rechazó la petición: " + body);
-            } catch (HttpServerErrorException | ResourceAccessException e) {
-                last = e;
-                log.warn("Reintento {}/{} a Factus falló: {}", attempt + 1, MAX_RETRIES, e.getMessage());
-                if (attempt < MAX_RETRIES - 1) {
-                    try {
-                        Thread.sleep(INITIAL_BACKOFF_MS * (1L << attempt));
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new ApiException(502, "Interrumpido durante retry a Factus");
-                    }
-                }
-            }
-        }
-        throw new ApiException(502,
-                "Factus inalcanzable tras " + MAX_RETRIES + " intentos: "
-                        + (last != null ? last.getMessage() : ""));
-    }
-
-    private void refreshAndSaveToken(User user) {
-        var authResponse = factusAuthClient.generateToken();
-        if (authResponse == null || authResponse.getAccess_token() == null) {
-            throw new ApiException(502, "No se pudo refrescar el token de Factus");
-        }
-        // Revocar todos los tokens anteriores de este usuario y guardar el nuevo
-        tokenRepository.revokeAllByUser(user);
-        Token newToken = new Token();
-        newToken.setUser(user);
-        newToken.setToken(authResponse.getAccess_token());
-        newToken.setTokenType(Token.TokenType.ACCESS);
-        newToken.setRevoked(false);
-        tokenRepository.save(newToken);
-        log.info("Token Factus refrescado para usuario: {}", user.getEmail());
-    }
-
-    private int asGatewayStatus(HttpStatusCode code) {
-        // Pasamos el status del downstream tal cual si es 4xx, para que el cliente vea el motivo real.
-        return code.value();
-    }
-
-    private <T> T postJson(User user, String path, Object body, Class<T> responseType) {
-
-        String token = getToken(user);
-
-        return restClient.post()
-                .uri(path)
-                .header("Authorization", "Bearer " + token)
-                .header("Content-Type", "application/json")
-                .body(body)
-                .retrieve()
-                .body(responseType);
-    }
-
-    private <T> T getJson(User user, String path, Class<T> responseType) {
-
-        String token = getToken(user);
-
-        return restClient.method(HttpMethod.GET)
-                .uri(path)
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .body(responseType);
-    }
-
-    private void deleteJson(User user, String path) {
-
-        String token = getToken(user);
-
-        restClient.method(HttpMethod.DELETE)
-                .uri(path)
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .toBodilessEntity();
-    }
-
-    private String getToken(User user){
-
-        Optional<Token> tokenOpt = tokenRepository.findAllByUserAndRevokedAndTokenType(user, false, Token.TokenType.ACCESS);
-
-        if (tokenOpt.isEmpty()) throw new ApiException(502, "Token NO encontrado en BD");
-
-        Token storedToken = tokenOpt.get();
-
-        if (!storedToken.isValid()) throw new ApiException(502, "Token encontrado pero revocado/expirado");
-
-        return  storedToken.getToken();
     }
 
     /**

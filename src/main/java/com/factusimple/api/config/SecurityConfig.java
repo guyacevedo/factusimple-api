@@ -47,29 +47,19 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http, TokenService tokenService,
                                            UserDetailsService userDetailsService,
                                            TokenRepository refreshTokenRepository) {
-
-        // Crear filtro inline (evita dependencia circular)
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(
                 tokenService, userDetailsService, refreshTokenRepository
         );
 
         http
-                // Deshabilitar CSRF (estamos usando JWT)
                 .csrf(AbstractHttpConfigurer::disable)
-                // Configurar CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // Política de sesión sin estado (stateless)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Configuración de autorización
                 .authorizeHttpRequests(auth -> auth
-                        // Permitir acceso público
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        // Todas las demás rutas requieren autenticación
                         .anyRequest().authenticated()
                 )
-                // Agregar filtro JWT
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                // Manejo de excepciones
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);
@@ -91,21 +81,16 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(List.of("*"));
-        // Métodos HTTP permitidos
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-
-        // Headers permitidos
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
-
-        // Credenciales permitidas (con '*' no se pueden usar credenciales)
         configuration.setAllowCredentials(false);
-
-        // Cache de preflight
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
