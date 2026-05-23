@@ -17,6 +17,7 @@ import com.factusimple.api.user.mapper.UserMapper;
 import com.factusimple.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,9 +124,15 @@ public class AuthService {
      */
     @Transactional
     public LoginResponseDto refreshToken(RefreshTokenRequestDto request) {
-        User user = validateRefreshTokenLocal(request.getRefreshToken());
+        Token refreshTokenEntity = validateRefreshTokenLocal(request.getRefreshToken());
+        User user = refreshTokenEntity.getUser();
 
-        FactusAuthResponseDto generatedToken = factusAuthClient.refreshToken(request.getRefreshToken());
+        String factusRefreshToken = refreshTokenEntity.getFactusToken();
+        if (factusRefreshToken == null) {
+            throw new UnauthorizedException("Token Factus no encontrado");
+        }
+
+        FactusAuthResponseDto generatedToken = factusAuthClient.refreshToken(factusRefreshToken);
         validateFactusResponse(generatedToken);
 
         Token accessToken = saveTokensLocal(user, generatedToken);
@@ -135,7 +142,7 @@ public class AuthService {
     }
 
     @Transactional
-    protected User validateRefreshTokenLocal(String refreshToken) {
+    protected Token validateRefreshTokenLocal(String refreshToken) {
         Token refreshTokenEntity = tokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new UnauthorizedException("Refresh token inválido"));
 
@@ -148,14 +155,16 @@ public class AuthService {
         }
 
         User user = refreshTokenEntity.getUser();
+        Hibernate.initialize(user.getPlan());
         revokeAllUserTokens(user);
-        return user;
+        return refreshTokenEntity;
     }
 
     /**
      * Logout.
      * Revoca todos los tokens asociados al usuario.
      */
+    @Transactional
     public void logout(String refreshToken) {
         tokenRepository.findByToken(refreshToken)
                 .ifPresent(token -> {
