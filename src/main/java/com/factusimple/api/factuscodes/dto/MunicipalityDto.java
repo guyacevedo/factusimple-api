@@ -1,4 +1,4 @@
-package com.factusimple.api.municipality.dto;
+package com.factusimple.api.factuscodes.dto;
 
 import lombok.Data;
 

@@ -22,4 +22,5 @@ public class FactusCodesResponseDto {
     private List<FactusCodeItemDto> invoiceCorrections;
     private List<FactusCodeItemDto> creditNoteOperationTypes;
     private List<UnitMeasureDto> unitMeasures;
+    private List<MunicipalityDto> municipalities;
 }

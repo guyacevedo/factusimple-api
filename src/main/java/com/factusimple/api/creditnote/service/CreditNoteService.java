@@ -7,8 +7,8 @@ import com.factusimple.api.creditnote.entity.CreditNoteItem;
 import com.factusimple.api.creditnote.entity.CreditNoteStatus;
 import com.factusimple.api.creditnote.mapper.CreditNoteMapper;
 import com.factusimple.api.creditnote.repository.CreditNoteRepository;
-import com.factusimple.api.establishments.entity.Establishment;
-import com.factusimple.api.establishments.service.EstablishmentService;
+import com.factusimple.api.establishment.entity.Establishment;
+import com.factusimple.api.establishment.service.EstablishmentService;
 import com.factusimple.api.infrastructure.exception.BadRequestException;
 import com.factusimple.api.infrastructure.exception.ConflictException;
 import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
-import java.math.BigDecimal;
+
 import java.util.Map;
 import java.util.UUID;
 

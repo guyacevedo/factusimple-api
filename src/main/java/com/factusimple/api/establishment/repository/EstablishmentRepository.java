@@ -1,6 +1,6 @@
-package com.factusimple.api.establishments.repository;
+package com.factusimple.api.establishment.repository;
 
-import com.factusimple.api.establishments.entity.Establishment;
+import com.factusimple.api.establishment.entity.Establishment;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

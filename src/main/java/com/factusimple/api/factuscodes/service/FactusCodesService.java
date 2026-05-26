@@ -1,9 +1,6 @@
 package com.factusimple.api.factuscodes.service;
 
-import com.factusimple.api.factuscodes.dto.FactusCodeItemDto;
-import com.factusimple.api.factuscodes.dto.FactusCodesResponseDto;
-import com.factusimple.api.factuscodes.dto.UnitMeasureDto;
-import com.factusimple.api.factuscodes.dto.UnitMeasureFileDto;
+import com.factusimple.api.factuscodes.dto.*;
 import com.factusimple.api.infrastructure.factus.codes.AllowanceChargeConceptCode;
 import com.factusimple.api.infrastructure.factus.codes.CreditNoteOperationType;
 import com.factusimple.api.infrastructure.factus.codes.FactusCode;
@@ -25,7 +22,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -46,6 +42,7 @@ public class FactusCodesService {
     public void loadData() {
         try {
             List<UnitMeasureDto> unitMeasures = loadUnitMeasures();
+            List<MunicipalityDto>  municipalities = loadMunicipalities();
 
             cache = FactusCodesResponseDto.builder()
                     .taxes(fromEnum(TaxCode.class))
@@ -62,6 +59,7 @@ public class FactusCodesService {
                     .invoiceCorrections(fromEnum(InvoiceCorrection.class))
                     .creditNoteOperationTypes(fromEnum(CreditNoteOperationType.class))
                     .unitMeasures(unitMeasures)
+                    .municipalities(municipalities)
                     .build();
 
             log.info("Factus codes loaded successfully into cache");
@@ -81,8 +79,18 @@ public class FactusCodesService {
                 throw new RuntimeException("unit_measures.json file not found");
             }
 
-            UnitMeasureFileDto response = objectMapper.readValue(inputStream, UnitMeasureFileDto.class);
+            UnitMeasureResponseDto response = objectMapper.readValue(inputStream, UnitMeasureResponseDto.class);
             return Collections.unmodifiableList(response.getUnitMeasures());
+        }
+    }
+
+    private List<MunicipalityDto> loadMunicipalities() throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/data/municipalities.json")) {
+            if (inputStream == null) {
+                throw new RuntimeException("municipalities.json file not found");
+            }
+            MunicipalityResponseDto response = objectMapper.readValue(inputStream, MunicipalityResponseDto.class);
+            return Collections.unmodifiableList(response.getMunicipalities());
         }
     }
 
@@ -90,7 +98,7 @@ public class FactusCodesService {
         return Collections.unmodifiableList(
                 Arrays.stream(enumClass.getEnumConstants())
                         .map(e -> new FactusCodeItemDto(e.getCode(), toDisplayName(e.name())))
-                        .collect(Collectors.toList())
+                        .toList()
         );
     }
 

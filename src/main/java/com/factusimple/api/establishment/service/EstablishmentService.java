@@ -1,10 +1,10 @@
-package com.factusimple.api.establishments.service;
+package com.factusimple.api.establishment.service;
 
-import com.factusimple.api.establishments.dto.EstablishmentRequestDto;
-import com.factusimple.api.establishments.dto.EstablishmentResponseDto;
-import com.factusimple.api.establishments.entity.Establishment;
-import com.factusimple.api.establishments.mapper.EstablishmentMapper;
-import com.factusimple.api.establishments.repository.EstablishmentRepository;
+import com.factusimple.api.establishment.dto.EstablishmentRequestDto;
+import com.factusimple.api.establishment.dto.EstablishmentResponseDto;
+import com.factusimple.api.establishment.entity.Establishment;
+import com.factusimple.api.establishment.mapper.EstablishmentMapper;
+import com.factusimple.api.establishment.repository.EstablishmentRepository;
 import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.infrastructure.factus.codes.NumberingRangeIdCode;
 import com.factusimple.api.user.entity.User;

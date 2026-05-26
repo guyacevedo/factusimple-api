@@ -1,8 +1,8 @@
-package com.factusimple.api.establishments.mapper;
+package com.factusimple.api.establishment.mapper;
 
-import com.factusimple.api.establishments.dto.EstablishmentRequestDto;
-import com.factusimple.api.establishments.dto.EstablishmentResponseDto;
-import com.factusimple.api.establishments.entity.Establishment;
+import com.factusimple.api.establishment.dto.EstablishmentRequestDto;
+import com.factusimple.api.establishment.dto.EstablishmentResponseDto;
+import com.factusimple.api.establishment.entity.Establishment;
 import com.factusimple.api.shared.mapper.BaseMapper;
 import org.mapstruct.*;
 

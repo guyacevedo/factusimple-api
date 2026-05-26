@@ -3,7 +3,7 @@ package com.factusimple.api.auth.service;
 import com.factusimple.api.auth.dto.*;
 import com.factusimple.api.auth.entity.Token;
 import com.factusimple.api.auth.repository.TokenRepository;
-import com.factusimple.api.establishments.service.EstablishmentService;
+import com.factusimple.api.establishment.service.EstablishmentService;
 import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
 import com.factusimple.api.infrastructure.exception.UnauthorizedException;
 import com.factusimple.api.infrastructure.factus.client.FactusAuthClient;
@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor

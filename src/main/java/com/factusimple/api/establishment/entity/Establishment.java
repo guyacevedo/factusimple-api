@@ -1,12 +1,10 @@
-package com.factusimple.api.establishments.entity;
+package com.factusimple.api.establishment.entity;
 
 import com.factusimple.api.infrastructure.persistence.BaseEntity;
 import com.factusimple.api.user.entity.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
-
-import java.time.LocalDate;
 
 @Entity
 @Table(name = "establishments", indexes = {

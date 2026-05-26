@@ -1,6 +1,6 @@
 package com.factusimple.api.auth.dto;
 
-import com.factusimple.api.establishments.dto.EstablishmentRequestDto;
+import com.factusimple.api.establishment.dto.EstablishmentRequestDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

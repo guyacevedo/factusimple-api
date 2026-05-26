@@ -5,6 +5,6 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class UnitMeasureFileDto {
-    private List<UnitMeasureDto> unitMeasures;
+public class MunicipalityResponseDto {
+    private List<MunicipalityDto> municipalities;
 }

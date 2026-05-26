@@ -1,7 +1,7 @@
 package com.factusimple.api.infrastructure.factus.client;
 
 import com.factusimple.api.customer.entity.Customer;
-import com.factusimple.api.establishments.entity.Establishment;
+import com.factusimple.api.establishment.entity.Establishment;
 import com.factusimple.api.infrastructure.exception.ApiException;
 import com.factusimple.api.invoice.entity.*;
 import com.factusimple.api.user.entity.User;

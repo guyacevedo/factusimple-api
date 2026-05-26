@@ -1,7 +1,7 @@
 package com.factusimple.api.invoice.service;
 
 import com.factusimple.api.customer.repository.CustomerRepository;
-import com.factusimple.api.establishments.service.EstablishmentService;
+import com.factusimple.api.establishment.service.EstablishmentService;
 import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.infrastructure.factus.client.FactusBillsClient;
 import com.factusimple.api.infrastructure.factus.codes.TaxCode;

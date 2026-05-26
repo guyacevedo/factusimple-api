@@ -1,7 +1,7 @@
 package com.factusimple.api.invoice.entity;
 
 import com.factusimple.api.customer.entity.Customer;
-import com.factusimple.api.establishments.entity.Establishment;
+import com.factusimple.api.establishment.entity.Establishment;
 import com.factusimple.api.infrastructure.persistence.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;

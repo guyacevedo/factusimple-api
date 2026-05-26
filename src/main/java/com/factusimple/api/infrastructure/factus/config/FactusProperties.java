@@ -8,6 +8,5 @@ public record FactusProperties(
         String clientId,
         String clientSecret,
         String user,
-        String password,
-        String expectedAudience
+        String password
 ) {}

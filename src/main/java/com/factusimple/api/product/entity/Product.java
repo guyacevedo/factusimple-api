@@ -1,6 +1,6 @@
 package com.factusimple.api.product.entity;
 
-import com.factusimple.api.establishments.entity.Establishment;
+import com.factusimple.api.establishment.entity.Establishment;
 import com.factusimple.api.infrastructure.persistence.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;

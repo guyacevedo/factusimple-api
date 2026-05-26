@@ -1,8 +1,8 @@
-package com.factusimple.api.establishments.controller;
+package com.factusimple.api.establishment.controller;
 
-import com.factusimple.api.establishments.dto.EstablishmentRequestDto;
-import com.factusimple.api.establishments.dto.EstablishmentResponseDto;
-import com.factusimple.api.establishments.service.EstablishmentService;
+import com.factusimple.api.establishment.dto.EstablishmentRequestDto;
+import com.factusimple.api.establishment.dto.EstablishmentResponseDto;
+import com.factusimple.api.establishment.service.EstablishmentService;
 import com.factusimple.api.infrastructure.filter.CustomUserDetails;
 import com.factusimple.api.shared.dto.ApiResponseDto;
 import com.factusimple.api.shared.dto.PageResponseDto;

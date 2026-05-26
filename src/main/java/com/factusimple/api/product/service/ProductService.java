@@ -1,7 +1,7 @@
 package com.factusimple.api.product.service;
 
-import com.factusimple.api.establishments.entity.Establishment;
-import com.factusimple.api.establishments.service.EstablishmentService;
+import com.factusimple.api.establishment.entity.Establishment;
+import com.factusimple.api.establishment.service.EstablishmentService;
 import com.factusimple.api.infrastructure.exception.*;
 import com.factusimple.api.product.dto.ProductRequestDto;
 import com.factusimple.api.product.dto.ProductResponseDto;

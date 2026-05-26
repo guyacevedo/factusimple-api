@@ -1,6 +1,6 @@
 package com.factusimple.api.creditnote.entity;
 
-import com.factusimple.api.establishments.entity.Establishment;
+import com.factusimple.api.establishment.entity.Establishment;
 import com.factusimple.api.infrastructure.persistence.BaseEntity;
 import com.factusimple.api.invoice.entity.Invoice;
 import jakarta.persistence.*;

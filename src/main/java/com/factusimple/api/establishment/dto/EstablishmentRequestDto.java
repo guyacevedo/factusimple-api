@@ -1,8 +1,7 @@
-package com.factusimple.api.establishments.dto;
+package com.factusimple.api.establishment.dto;
 
 import com.factusimple.api.infrastructure.factus.codes.FiscalResponsibilityCode;
 import com.factusimple.api.infrastructure.factus.codes.LegalOrgCode;
-import com.factusimple.api.infrastructure.factus.codes.NumberingRangeIdCode;
 import com.factusimple.api.infrastructure.factus.codes.TributeCode;
 import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.Email;
@@ -12,8 +11,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @Data
 @Builder
