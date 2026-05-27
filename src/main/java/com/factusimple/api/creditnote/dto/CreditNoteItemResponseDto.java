@@ -1,5 +1,7 @@
 package com.factusimple.api.creditnote.dto;
 
+import com.factusimple.api.shared.dto.ItemTaxResponseDto;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -15,5 +17,5 @@ public record CreditNoteItemResponseDto(
         String unitMeasureCode,
         String standardCode,
         String note,
-        List<CreditNoteItemTaxResponseDto> taxes
+        List<ItemTaxResponseDto> taxes
 ) {}

@@ -25,8 +25,8 @@ public class PlanService {
 
     @Transactional
     public PlanResponseDto createPlan(PlanRequestDto requestDto) {
-        if (planRepository.findByName(requestDto.getName()).isPresent()) {
-            throw new ConflictException("Plan with name '" + requestDto.getName() + "' already exists");
+        if (planRepository.findByName(requestDto.name()).isPresent()) {
+            throw new ConflictException("Plan with name '" + requestDto.name() + "' already exists");
         }
 
         Plan plan = planMapper.toEntity(requestDto);
@@ -60,9 +60,9 @@ public class PlanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with id: " + id));
 
         // Check if new name conflicts with another plan (if name is being changed)
-        if (!plan.getName().equals(requestDto.getName()) &&
-            planRepository.findByName(requestDto.getName()).isPresent()) {
-            throw new ConflictException("Plan with name '" + requestDto.getName() + "' already exists");
+        if (!plan.getName().equals(requestDto.name()) &&
+            planRepository.findByName(requestDto.name()).isPresent()) {
+            throw new ConflictException("Plan with name '" + requestDto.name() + "' already exists");
         }
 
         planMapper.updateEntity(requestDto, plan);

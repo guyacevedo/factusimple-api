@@ -1,5 +1,6 @@
 package com.factusimple.api.creditnote.dto;
 
+import com.factusimple.api.shared.dto.ItemTaxRequestDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -20,5 +21,5 @@ public record CreditNoteItemRequestDto(
         String unitMeasureCode,
         String standardCode,
         String note,
-        @NotEmpty @Valid List<CreditNoteItemTaxRequestDto> taxes
+        @NotEmpty @Valid List<ItemTaxRequestDto> taxes
 ) {}

@@ -6,34 +6,25 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class RegisterRequestDto {
-
+public record RegisterRequestDto(
     @NotBlank(message = "El email es requerido")
     @Email(message = "El email debe ser válido")
-    private String email;
+    String email,
 
     @NotBlank(message = "La contraseña es requerida")
-    private String password;
+    String password,
 
     @NotBlank(message = "El nombre es requerido")
-    private String firstName;
+    String firstName,
 
     @NotBlank(message = "El apellido es requerido")
-    private String lastName;
+    String lastName,
 
     @Pattern(regexp = "^[+]?[0-9]{7,20}$", message = "Teléfono inválido")
-    private String phone;
+    String phone,
 
     @NotNull(message = "La información del establecimiento es requerida")
     @Valid
-    private EstablishmentRequestDto establishment;
-}
+    EstablishmentRequestDto establishment
+) {}

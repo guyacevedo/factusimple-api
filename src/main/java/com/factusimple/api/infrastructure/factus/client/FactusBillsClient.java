@@ -3,12 +3,11 @@ package com.factusimple.api.infrastructure.factus.client;
 import com.factusimple.api.customer.entity.Customer;
 import com.factusimple.api.establishment.entity.Establishment;
 import com.factusimple.api.infrastructure.exception.ApiException;
+import com.factusimple.api.infrastructure.factus.dto.bill.*;
 import com.factusimple.api.invoice.entity.*;
 import com.factusimple.api.user.entity.User;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -37,7 +36,7 @@ public class FactusBillsClient {
     @SuppressWarnings("unchecked")
     @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableMapFallback")
     public Map<String, Object> createBillAtFactus(Invoice invoice) {
-        Map<String, Object> payload = buildPayload(invoice);
+        FactusBillPayloadDto payload = buildPayload(invoice);
         User user = invoice.getEstablishment().getUser();
         log.debug("Enviando factura a Factus: referenceCode={} creada por usuario: {}", invoice.getReferenceCode(), user.getEmail());
         return executor.executeWithRetry(user, () -> executor.postJson(user, "/v2/bills/validate", payload, Map.class));
@@ -63,13 +62,13 @@ public class FactusBillsClient {
     public FactusBillResult getBillDetailsFromFactus(User user, String factusNumber) {
         Map<String, Object> response = getBillFromFactus(user, factusNumber);
 
-        FactusBillResult result = new FactusBillResult();
+        FactusBillResult result = new FactusBillResult(null, null, null, false);
         Object data = response.get("data");
         if (data instanceof Map<?, ?> dataMap) {
-            extractFields(dataMap, result);
+            result = extractFields(dataMap, result);
         }
 
-        if (result.getNumber() == null) {
+        if (result.number() == null) {
             throw new ApiException(502, "No se pudo obtener el número de factura de Factus");
         }
 
@@ -131,104 +130,92 @@ public class FactusBillsClient {
      * Los nombres de campo siguen la convención snake_case de Factus.
      * Ajustar aquí si la sandbox rechaza por nombres específicos.
      */
-    private Map<String, Object> buildPayload(Invoice invoice) {
+    private FactusBillPayloadDto buildPayload(Invoice invoice) {
 
         Establishment establishment = invoice.getEstablishment();
         Customer customer = invoice.getCustomer();
 
-        Map<String, Object> payload = new LinkedHashMap<>();
+        FactusBillEstablishmentDto establishmentDto = getEstablishmentDto(establishment);
+        FactusBillCustomerDto customerDto = getCustomerDto(customer);
+        List<FactusBillItemDto> itemsList = getItemsList(invoice);
+        List<FactusBillPaymentDto> paymentsList = getPaymentsList(invoice);
 
-        payload.put("numbering_range_id", establishment.getNumberingRangeId());
-        payload.put("reference_code", invoice.getReferenceCode());
-        payload.put("document_type", invoice.getDocumentType());
-        payload.put("operation_type", invoice.getOperationType());
-        payload.put("send_email", invoice.getSendEmail());
-        if (invoice.getObservation() != null) {
-            payload.put("observation", invoice.getObservation());
-        }
-        if (invoice.getCashRounding() != null) {
-            payload.put("cash_rounding", invoice.getCashRounding());
-        }
+        List<FactusBillPrepaymentDto> prepaymentsList = !invoice.getPrepayments().isEmpty()
+                ? getPrepaymentsList(invoice)
+                : null;
 
-        // Establishment
-        Map<String, Object> establishmentMap = getEstablishmentMap(establishment);
-        payload.put("establishment", establishmentMap);
+        List<FactusBillAllowanceChargeDto> allowanceChargesList = !invoice.getAllowanceCharges().isEmpty()
+                ? getAllowanceChargeList(invoice)
+                : null;
 
-        // Customer
-        Map<String, Object> customerMap = getCustomerMap(customer);
-        payload.put("customer", customerMap);
-
-        // Items
-        List<Map<String, Object>> itemsList = getItemsList(invoice);
-        payload.put("items", itemsList);
-
-        // Payments
-        List<Map<String, Object>> paymentsList = getPaymentsList(invoice);
-        payload.put("payment_details", paymentsList);
-
-        // Prepayments
-        if (!invoice.getPrepayments().isEmpty()) {
-            List<Map<String, Object>> prepaymentsList = getPrepaymentsList(invoice);
-            payload.put("prepayments", prepaymentsList);
-        }
-
-        // Allowance/Charges
-        if (!invoice.getAllowanceCharges().isEmpty()) {
-            List<Map<String, Object>> acsList = getAllowanceChargeList(invoice);
-            payload.put("allowance_charges", acsList);
-        }
-
-        return payload;
+        return new FactusBillPayloadDto(
+                establishment.getNumberingRangeId() != null ? establishment.getNumberingRangeId().toString() : null,
+                invoice.getReferenceCode(),
+                invoice.getDocumentType(),
+                invoice.getOperationType(),
+                invoice.getSendEmail(),
+                invoice.getObservation(),
+                invoice.getCashRounding(),
+                establishmentDto,
+                customerDto,
+                itemsList,
+                paymentsList,
+                prepaymentsList,
+                allowanceChargesList
+        );
     }
 
-    private static List<Map<String, Object>> getAllowanceChargeList(Invoice invoice) {
-        List<Map<String, Object>> allowanceChargeList = new java.util.ArrayList<>();
+    private static List<FactusBillAllowanceChargeDto> getAllowanceChargeList(Invoice invoice) {
+        List<FactusBillAllowanceChargeDto> allowanceChargeList = new java.util.ArrayList<>();
         for (AllowanceCharge allowanceCharge : invoice.getAllowanceCharges()) {
-            Map<String, Object> acm = new LinkedHashMap<>();
-            acm.put("concept_type", allowanceCharge.getConceptType());
-            acm.put("is_charge", allowanceCharge.getIsSurcharge());        // true = recargo, false = descuento
-            acm.put("reason", allowanceCharge.getReason());
-            acm.put("base_amount", allowanceCharge.getBaseAmount());
-            acm.put("amount", allowanceCharge.getAmount());
-            allowanceChargeList.add(acm);
+            FactusBillAllowanceChargeDto dto = new FactusBillAllowanceChargeDto(
+                    allowanceCharge.getConceptType(),
+                    allowanceCharge.getIsSurcharge(),        // true = recargo, false = descuento
+                    allowanceCharge.getReason(),
+                    allowanceCharge.getBaseAmount(),
+                    allowanceCharge.getAmount()
+            );
+            allowanceChargeList.add(dto);
         }
         return allowanceChargeList;
     }
 
-    private static List<Map<String, Object>> getPrepaymentsList(Invoice invoice) {
-        List<Map<String, Object>> prepaymentsList = new java.util.ArrayList<>();
+    private static List<FactusBillPrepaymentDto> getPrepaymentsList(Invoice invoice) {
+        List<FactusBillPrepaymentDto> prepaymentsList = new java.util.ArrayList<>();
         for (InvoicePrepayment pp : invoice.getPrepayments()) {
-            Map<String, Object> ppm = new LinkedHashMap<>();
-            if (pp.getReferenceCode() != null) ppm.put("reference_code", pp.getReferenceCode());
-            ppm.put("received_date", pp.getReceivedDate().toString());
-            ppm.put("amount", pp.getAmount());
-            if (pp.getNote() != null) ppm.put("note", pp.getNote());
-            prepaymentsList.add(ppm);
+            FactusBillPrepaymentDto dto = new FactusBillPrepaymentDto(
+                    pp.getReferenceCode(),
+                    pp.getReceivedDate().toString(),
+                    pp.getAmount(),
+                    pp.getNote()
+            );
+            prepaymentsList.add(dto);
         }
         return prepaymentsList;
     }
 
-    private static List<Map<String, Object>> getPaymentsList(Invoice invoice) {
-        List<Map<String, Object>> paymentsList = new java.util.ArrayList<>();
+    private static List<FactusBillPaymentDto> getPaymentsList(Invoice invoice) {
+        List<FactusBillPaymentDto> paymentsList = new java.util.ArrayList<>();
         for (InvoicePayment p : invoice.getPayments()) {
-            Map<String, Object> pm = new LinkedHashMap<>();
-            pm.put("payment_form", p.getPaymentForm());
-            pm.put("payment_method_code", p.getPaymentMethodCode());
-            pm.put("amount", p.getAmount());
-            if (p.getReferenceCode() != null) pm.put("reference_code", p.getReferenceCode());
-            if (p.getDueDate() != null) pm.put("due_date", p.getDueDate().toString());
-            paymentsList.add(pm);
+            FactusBillPaymentDto dto = new FactusBillPaymentDto(
+                    p.getPaymentForm(),
+                    p.getPaymentMethodCode(),
+                    p.getAmount(),
+                    p.getReferenceCode(),
+                    p.getDueDate() != null ? p.getDueDate().toString() : null
+            );
+            paymentsList.add(dto);
         }
         return paymentsList;
     }
 
-    private static List<Map<String, Object>> getItemsList(Invoice invoice) {
+    private static List<FactusBillItemDto> getItemsList(Invoice invoice) {
 
-        List<Map<String, Object>> itemsList = new java.util.ArrayList<>();
+        List<FactusBillItemDto> itemsList = new java.util.ArrayList<>();
 
         for (InvoiceItem invoiceItem : invoice.getItems()) {
 
-            Map<String, Object> item = getItem(invoiceItem);
+            FactusBillItemDto item = getItem(invoiceItem);
 
             itemsList.add(item);
         }
@@ -236,8 +223,7 @@ public class FactusBillsClient {
         return itemsList;
     }
 
-    private static Map<String, Object> getItem(InvoiceItem invoiceItem) {
-        Map<String, Object> item = new LinkedHashMap<>();
+    private static FactusBillItemDto getItem(InvoiceItem invoiceItem) {
         // code_reference: use provided value or fall back to product SKU
         String codeRef = invoiceItem.getCodeReference();
         if (codeRef == null && invoiceItem.getProduct() != null) {
@@ -246,66 +232,67 @@ public class FactusBillsClient {
         if (codeRef == null) {
             throw new ApiException(400, "El invoiceItem requiere codeReference o un producto con SKU definido");
         }
-        item.put("code_reference", codeRef);
-        item.put("name", invoiceItem.getName());
-        item.put("quantity", invoiceItem.getQuantity());
-        item.put("price", invoiceItem.getUnitPrice());
-        // discount_rate always required by Factus; default to 0
-        item.put("discount_rate", invoiceItem.getDiscountRate() != null ? invoiceItem.getDiscountRate() : java.math.BigDecimal.ZERO);
-        if (invoiceItem.getUnitMeasureCode() != null) item.put("unit_measure_code", invoiceItem.getUnitMeasureCode());
-        if (invoiceItem.getStandardCode() != null) item.put("standard_code", invoiceItem.getStandardCode());
-        if (invoiceItem.getNote() != null) item.put("note", invoiceItem.getNote());
+
+        String sku = null;
         if (invoiceItem.getProduct() != null && invoiceItem.getProduct().getSku() != null) {
-            item.put("sku", invoiceItem.getProduct().getSku());
+            sku = invoiceItem.getProduct().getSku();
         }
 
         // Separar impuestos vs retenciones
-        List<Map<String, Object>> taxes = new java.util.ArrayList<>();
-        List<Map<String, Object>> withholdings = new java.util.ArrayList<>();
+        List<FactusBillItemTaxDto> taxes = new java.util.ArrayList<>();
+        List<FactusBillItemTaxDto> withholdings = new java.util.ArrayList<>();
         for (InvoiceItemTax tax : invoiceItem.getTaxes()) {
-            Map<String, Object> t = new LinkedHashMap<>();
-            t.put("code", tax.getTaxCode());
-            t.put("rate", tax.getTaxRate());
+            FactusBillItemTaxDto t = new FactusBillItemTaxDto(
+                    tax.getTaxCode(),
+                    tax.getTaxRate()
+            );
             if (Boolean.TRUE.equals(tax.getIsWithholding())) {
                 withholdings.add(t);
             } else {
                 taxes.add(t);
             }
         }
-        if (!taxes.isEmpty()) item.put("taxes", taxes);
-        if (!withholdings.isEmpty()) item.put("withholding_taxes", withholdings);
-        return item;
+
+        return new FactusBillItemDto(
+                codeRef,
+                invoiceItem.getName(),
+                invoiceItem.getQuantity(),
+                invoiceItem.getUnitPrice(),
+                invoiceItem.getDiscountRate() != null ? invoiceItem.getDiscountRate() : java.math.BigDecimal.ZERO,
+                invoiceItem.getUnitMeasureCode(),
+                invoiceItem.getStandardCode(),
+                invoiceItem.getNote(),
+                sku,
+                !taxes.isEmpty() ? taxes : null,
+                !withholdings.isEmpty() ? withholdings : null
+        );
     }
 
-    private static Map<String, Object> getEstablishmentMap(Establishment establishment) {
-        Map<String, Object> establishmentMap = new LinkedHashMap<>();
-        establishmentMap.put("name", establishment.getName());
-        establishmentMap.put("address", establishment.getAddress());
-        if (establishment.getPhoneNumber() != null) establishmentMap.put("phone_number", establishment.getPhoneNumber());
-        if (establishment.getEmail() != null) establishmentMap.put("email", establishment.getEmail());
-        if (establishment.getMunicipalityCode() != null) {
-            establishmentMap.put("municipality_code", establishment.getMunicipalityCode());
-        }
-        return establishmentMap;
+    private static FactusBillEstablishmentDto getEstablishmentDto(Establishment establishment) {
+        return new FactusBillEstablishmentDto(
+                establishment.getName(),
+                establishment.getAddress(),
+                establishment.getPhoneNumber(),
+                establishment.getEmail(),
+                establishment.getMunicipalityCode()
+        );
     }
 
-    private static Map<String, Object> getCustomerMap(Customer customer) {
-        Map<String, Object> customerMap = new LinkedHashMap<>();
-        customerMap.put("identification_document_code", customer.getIdTypeCode());
-        customerMap.put("identification", customer.getIdentification());
-        if (customer.getDv() != null) customerMap.put("dv", customer.getDv());
-        customerMap.put("legal_organization_id", customer.getLegalOrgCode());
-        customerMap.put("tribute_id", customer.getTributeCode());
-        customerMap.put("names", customer.getNames());
-        if (customer.getCompany() != null) customerMap.put("company", customer.getCompany());
-        if (customer.getTradeName() != null) customerMap.put("trade_name", customer.getTradeName());
-        if (customer.getAddress() != null) customerMap.put("address", customer.getAddress());
-        if (customer.getEmail() != null) customerMap.put("email", customer.getEmail());
-        if (customer.getPhone() != null) customerMap.put("phone", customer.getPhone());
-        if (customer.getMunicipalityCode() != null) {
-            customerMap.put("municipality_id", customer.getMunicipalityCode());
-        }
-        return customerMap;
+    private static FactusBillCustomerDto getCustomerDto(Customer customer) {
+        return new FactusBillCustomerDto(
+                customer.getIdTypeCode(),
+                customer.getIdentification(),
+                customer.getDv(),
+                customer.getLegalOrgCode(),
+                customer.getTributeCode(),
+                customer.getNames(),
+                customer.getCompany(),
+                customer.getTradeName(),
+                customer.getAddress(),
+                customer.getEmail(),
+                customer.getPhone(),
+                customer.getMunicipalityCode()
+        );
     }
 
     /**
@@ -316,69 +303,72 @@ public class FactusBillsClient {
      * 3. response.bill (directamente)
      */
     public static FactusBillResult parseBillResponse(Map<String, Object> response) {
-        FactusBillResult result = new FactusBillResult();
+        FactusBillResult result = new FactusBillResult(null, null, null, false);
         if (response == null) return result;
 
         // Intentar en response.data si es un Map
         Object data = response.get("data");
         if (data instanceof Map<?, ?> dataMap) {
-            extractFields(dataMap, result);
+            result = extractFields(dataMap, result);
 
             // Si no encontramos número, intentar response.data.bill
-            if (result.getNumber() == null) {
+            if (result.number() == null) {
                 Object bill = dataMap.get("bill");
                 if (bill instanceof Map<?, ?> billMap) {
-                    extractFields(billMap, result);
+                    result = extractFields(billMap, result);
                 }
             }
         }
 
         // Intentar directamente en response.bill
-        if (result.getNumber() == null) {
+        if (result.number() == null) {
             Object bill = response.get("bill");
             if (bill instanceof Map<?, ?> billMap) {
-                extractFields(billMap, result);
+                result = extractFields(billMap, result);
             }
         }
 
         // Intentar extraer xmlUrl de links si no lo encontramos
-        if (result.getXmlUrl() == null) {
+        if (result.xmlUrl() == null) {
             Object links = response.get("links");
             if (links instanceof Map<?, ?> linksMap) {
                 Object pub = linksMap.get("public_url");
-                if (pub != null) result.setXmlUrl(pub.toString());
+                if (pub != null) result = new FactusBillResult(result.number(), result.cufe(), pub.toString(), result.validated());
             }
         }
 
         return result;
     }
 
-    private static void extractFields(Map<?, ?> map, FactusBillResult result) {
-        Object number = map.get("number");
-        if (number != null) result.setNumber(number.toString());
+    private static FactusBillResult extractFields(Map<?, ?> map, FactusBillResult result) {
+        String number = result.number();
+        String cufe = result.cufe();
+        String xmlUrl = result.xmlUrl();
+        boolean validated = result.validated();
 
-        Object cufe = map.get("cufe");
-        if (cufe != null) result.setCufe(cufe.toString());
+        Object numberObj = map.get("number");
+        if (numberObj != null) number = numberObj.toString();
 
-        Object validated = map.get("is_validated");
-        if (validated instanceof Boolean v) {
-            result.setValidated(v);
+        Object cufeObj = map.get("cufe");
+        if (cufeObj != null) cufe = cufeObj.toString();
+
+        Object validatedObj = map.get("is_validated");
+        if (validatedObj instanceof Boolean v) {
+            validated = v;
         } else {
             Object validatedAlt = map.get("validated");
-            if (validatedAlt instanceof Boolean v) result.setValidated(v);
+            if (validatedAlt instanceof Boolean v) validated = v;
         }
 
-        Object xmlUrl = map.get("xml_url");
-        if (xmlUrl != null) result.setXmlUrl(xmlUrl.toString());
+        Object xmlUrlObj = map.get("xml_url");
+        if (xmlUrlObj != null) xmlUrl = xmlUrlObj.toString();
+
+        return new FactusBillResult(number, cufe, xmlUrl, validated);
     }
 
-    @Setter
-    @Getter
-    public static class FactusBillResult {
-        private String number;
-        private String cufe;
-        private String xmlUrl;
-        private boolean validated;
-
+    public record FactusBillResult(String number, String cufe, String xmlUrl, boolean validated) {
+        public static FactusBillResult from(String number, String cufe, String xmlUrl, boolean validated) {
+            return new FactusBillResult(number, cufe, xmlUrl, validated);
+        }
     }
 }

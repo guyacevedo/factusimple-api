@@ -3,6 +3,7 @@ package com.factusimple.api.invoice.mapper;
 import com.factusimple.api.customer.mapper.CustomerMapper;
 import com.factusimple.api.invoice.dto.*;
 import com.factusimple.api.invoice.entity.*;
+import com.factusimple.api.shared.dto.*;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -53,25 +54,25 @@ public interface InvoiceMapper {
 
     // ----- Item Taxes -----
 
-    InvoiceItemTaxResponseDto taxToDto(InvoiceItemTax tax);
+    ItemTaxResponseDto taxToDto(InvoiceItemTax tax);
 
-    List<InvoiceItemTaxResponseDto> taxesToDto(List<InvoiceItemTax> taxes);
+    List<ItemTaxResponseDto> taxesToDto(List<InvoiceItemTax> taxes);
 
     @Mapping(target = "item", ignore = true)
-    InvoiceItemTax taxToEntity(InvoiceItemTaxRequestDto dto);
+    InvoiceItemTax taxToEntity(ItemTaxRequestDto dto);
 
-    List<InvoiceItemTax> taxesToEntity(List<InvoiceItemTaxRequestDto> dtos);
+    List<InvoiceItemTax> taxesToEntity(List<ItemTaxRequestDto> dtos);
 
     // ----- Payments -----
 
-    InvoicePaymentResponseDto paymentToDto(InvoicePayment payment);
+    PaymentResponseDto paymentToDto(InvoicePayment payment);
 
-    List<InvoicePaymentResponseDto> paymentsToDto(List<InvoicePayment> payments);
+    List<PaymentResponseDto> paymentsToDto(List<InvoicePayment> payments);
 
     @Mapping(target = "invoice", ignore = true)
-    InvoicePayment paymentToEntity(InvoicePaymentRequestDto dto);
+    InvoicePayment paymentToEntity(PaymentRequestDto dto);
 
-    List<InvoicePayment> paymentsToEntity(List<InvoicePaymentRequestDto> dtos);
+    List<InvoicePayment> paymentsToEntity(List<PaymentRequestDto> dtos);
 
     // ----- Prepayments -----
 

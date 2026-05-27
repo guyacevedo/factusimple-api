@@ -2,44 +2,37 @@ package com.factusimple.api.invoice.dto;
 
 import com.factusimple.api.customer.dto.CustomerResponseDto;
 import com.factusimple.api.invoice.entity.InvoiceStatus;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.factusimple.api.shared.dto.AllowanceChargeResponseDto;
+import com.factusimple.api.shared.dto.PaymentResponseDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class InvoiceResponseDto {
-
-    private UUID id;
-    private UUID establishmentId;
-    private CustomerResponseDto customer;
-    private String referenceCode;
-    private String documentType;
-    private String operationType;
-    private Boolean sendEmail;
-    private String observation;
-    private BigDecimal cashRounding;
-    private InvoiceStatus status;
-    private BigDecimal subtotal;
-    private BigDecimal totalTaxes;
-    private BigDecimal totalDiscounts;
-    private BigDecimal total;
-    private String cufe;
-    private String xmlUrl;
-    private String factusNumber;
-    private String factusError;
-    private List<InvoiceItemResponseDto> items;
-    private List<InvoicePaymentResponseDto> payments;
-    private List<InvoicePrepaymentResponseDto> prepayments;
-    private List<AllowanceChargeResponseDto> allowanceCharges;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-}
+public record InvoiceResponseDto(
+    UUID id,
+    UUID establishmentId,
+    CustomerResponseDto customer,
+    String referenceCode,
+    String documentType,
+    String operationType,
+    Boolean sendEmail,
+    String observation,
+    BigDecimal cashRounding,
+    InvoiceStatus status,
+    BigDecimal subtotal,
+    BigDecimal totalTaxes,
+    BigDecimal totalDiscounts,
+    BigDecimal total,
+    String cufe,
+    String xmlUrl,
+    String factusNumber,
+    String factusError,
+    List<InvoiceItemResponseDto> items,
+    List<PaymentResponseDto> payments,
+    List<InvoicePrepaymentResponseDto> prepayments,
+    List<AllowanceChargeResponseDto> allowanceCharges,
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt
+) {}

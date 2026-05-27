@@ -1,36 +1,30 @@
 package com.factusimple.api.factuscodes.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class NumberingRangeDto {
-    private Integer id;
-    private String document;
-    private String prefix;
-    private Long from;
-    private Long to;
-    private Long current;
+public record NumberingRangeDto(
+    Integer id,
+    String document,
+    String prefix,
+    Long from,
+    Long to,
+    Long current,
 
     @JsonProperty("resolution_number")
-    private String resolutionNumber;
+    String resolutionNumber,
 
     @JsonProperty("start_date")
-    private String startDate;
+    String startDate,
 
     @JsonProperty("end_date")
-    private String endDate;
+    String endDate,
 
     @JsonProperty("technical_key")
-    private String technicalKey;
+    String technicalKey,
 
     @JsonProperty("is_expired")
-    private Boolean isExpired;
+    Boolean isExpired,
 
     @JsonProperty("is_active")
-    private Boolean isActive;
-}
+    Boolean isActive
+) {}

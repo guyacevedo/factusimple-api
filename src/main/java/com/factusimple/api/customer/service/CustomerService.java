@@ -44,10 +44,10 @@ public class CustomerService {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
         if (customerRepository.existsByIdentificationAndEstablishmentId(
-                requestDto.getIdentification(), establishment.getId())) {
+                requestDto.identification(), establishment.getId())) {
             throw new ConflictException(
                     "Ya existe un cliente con identificación '"
-                            + requestDto.getIdentification() + "' en este establecimiento");
+                            + requestDto.identification() + "' en este establecimiento");
         }
 
         Customer customer = customerMapper.toEntity(requestDto);
@@ -89,12 +89,12 @@ public class CustomerService {
         validateLegalOrgFields(requestDto);
         Customer customer = requireOwned(userId, customerId);
 
-        if (!customer.getIdentification().equals(requestDto.getIdentification())
+        if (!customer.getIdentification().equals(requestDto.identification())
                 && customerRepository.existsByIdentificationAndEstablishmentId(
-                        requestDto.getIdentification(), customer.getEstablishment().getId())) {
+                        requestDto.identification(), customer.getEstablishment().getId())) {
             throw new ConflictException(
                     "Ya existe un cliente con identificación '"
-                            + requestDto.getIdentification() + "' en este establecimiento");
+                            + requestDto.identification() + "' en este establecimiento");
         }
 
         customerMapper.updateEntity(requestDto, customer);
@@ -122,14 +122,14 @@ public class CustomerService {
      * Persona Natural (legalOrgCode = "2") requiere `names`.
      */
     private void validateLegalOrgFields(CustomerRequestDto dto) {
-        String code = dto.getLegalOrgCode();
+        String code = dto.legalOrgCode();
         if (code == null) {
             return;
         }
-        if (LEGAL_ORG_PJ.equals(code) && (dto.getCompany() == null || dto.getCompany().isBlank())) {
+        if (LEGAL_ORG_PJ.equals(code) && (dto.company() == null || dto.company().isBlank())) {
             throw new BadRequestException("Persona Jurídica requiere razón social ('company')");
         }
-        if (LEGAL_ORG_PN.equals(code) && (dto.getNames() == null || dto.getNames().isBlank())) {
+        if (LEGAL_ORG_PN.equals(code) && (dto.names() == null || dto.names().isBlank())) {
             throw new BadRequestException("Persona Natural requiere nombres ('names')");
         }
     }

@@ -5,34 +5,25 @@ import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AllowanceChargeRequestDto {
-
+public record AllowanceChargeRequestDto(
     @NotBlank
     @ValidFactusCode(AllowanceChargeConceptCode.class)
-    private String conceptType;
+    String conceptType,
 
     @NotNull
-    private Boolean isSurcharge;        // false = descuento, true = recargo
+    Boolean isSurcharge,
 
     @NotBlank
-    private String reason;
+    String reason,
 
     @NotNull
     @DecimalMin(value = "0.0")
-    private BigDecimal baseAmount;
+    BigDecimal baseAmount,
 
     @NotNull
     @DecimalMin(value = "0.0")
-    private BigDecimal amount;
-}
+    BigDecimal amount
+) {}

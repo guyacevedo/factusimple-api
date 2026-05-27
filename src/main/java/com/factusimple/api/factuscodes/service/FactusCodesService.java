@@ -44,23 +44,23 @@ public class FactusCodesService {
             List<UnitMeasureDto> unitMeasures = loadUnitMeasures();
             List<MunicipalityDto>  municipalities = loadMunicipalities();
 
-            cache = FactusCodesResponseDto.builder()
-                    .taxes(fromEnum(TaxCode.class))
-                    .withholdingTaxes(fromEnum(WithholdingTaxCode.class))
-                    .tributeCodes(fromEnum(TributeCode.class))
-                    .paymentForms(fromEnum(PaymentFormCode.class))
-                    .paymentMethods(fromEnum(PaymentMethodCode.class))
-                    .allowanceChargeConcepts(fromEnum(AllowanceChargeConceptCode.class))
-                    .identityDocumentTypes(fromEnum(IdentityDocumentType.class))
-                    .legalOrgTypes(fromEnum(LegalOrgCode.class))
-                    .invoiceOperationTypes(fromEnum(InvoiceOperationType.class))
-                    .fiscalResponsibilities(fromEnum(FiscalResponsibilityCode.class))
-                    .productStandards(fromEnum(ProductStandardCode.class))
-                    .invoiceCorrections(fromEnum(InvoiceCorrection.class))
-                    .creditNoteOperationTypes(fromEnum(CreditNoteOperationType.class))
-                    .unitMeasures(unitMeasures)
-                    .municipalities(municipalities)
-                    .build();
+            cache = new FactusCodesResponseDto(
+                    fromEnum(TaxCode.class),
+                    fromEnum(WithholdingTaxCode.class),
+                    fromEnum(TributeCode.class),
+                    fromEnum(PaymentFormCode.class),
+                    fromEnum(PaymentMethodCode.class),
+                    fromEnum(AllowanceChargeConceptCode.class),
+                    fromEnum(IdentityDocumentType.class),
+                    fromEnum(LegalOrgCode.class),
+                    fromEnum(InvoiceOperationType.class),
+                    fromEnum(FiscalResponsibilityCode.class),
+                    fromEnum(ProductStandardCode.class),
+                    fromEnum(InvoiceCorrection.class),
+                    fromEnum(CreditNoteOperationType.class),
+                    unitMeasures,
+                    municipalities
+            );
 
             log.info("Factus codes loaded successfully into cache");
         } catch (IOException e) {
@@ -80,7 +80,7 @@ public class FactusCodesService {
             }
 
             UnitMeasureResponseDto response = objectMapper.readValue(inputStream, UnitMeasureResponseDto.class);
-            return Collections.unmodifiableList(response.getUnitMeasures());
+            return Collections.unmodifiableList(response.unitMeasures());
         }
     }
 
@@ -90,7 +90,7 @@ public class FactusCodesService {
                 throw new RuntimeException("municipalities.json file not found");
             }
             MunicipalityResponseDto response = objectMapper.readValue(inputStream, MunicipalityResponseDto.class);
-            return Collections.unmodifiableList(response.getMunicipalities());
+            return Collections.unmodifiableList(response.municipalities());
         }
     }
 

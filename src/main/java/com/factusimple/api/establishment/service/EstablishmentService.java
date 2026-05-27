@@ -34,8 +34,8 @@ public class EstablishmentService {
         if (establishmentRepository.existsByUserId(user.getId())) {
             throw new ConflictException("El usuario ya tiene un establecimiento asociado");
         }
-        if (establishmentRepository.existsByNit(requestDto.getNit())) {
-            throw new ConflictException("Ya existe un establecimiento con NIT " + requestDto.getNit());
+        if (establishmentRepository.existsByNit(requestDto.nit())) {
+            throw new ConflictException("Ya existe un establecimiento con NIT " + requestDto.nit());
         }
 
         Establishment establishment = establishmentMapper.toEntity(requestDto);
@@ -66,9 +66,9 @@ public class EstablishmentService {
     public EstablishmentResponseDto update(UUID userId, EstablishmentRequestDto requestDto) {
         Establishment establishment = getEntityByUserId(userId);
 
-        if (!establishment.getNit().equals(requestDto.getNit())
-                && establishmentRepository.existsByNit(requestDto.getNit())) {
-            throw new ConflictException("Ya existe un establecimiento con NIT " + requestDto.getNit());
+        if (!establishment.getNit().equals(requestDto.nit())
+                && establishmentRepository.existsByNit(requestDto.nit())) {
+            throw new ConflictException("Ya existe un establecimiento con NIT " + requestDto.nit());
         }
 
         establishmentMapper.updateEntity(requestDto, establishment);

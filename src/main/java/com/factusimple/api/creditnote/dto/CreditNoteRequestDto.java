@@ -1,5 +1,6 @@
 package com.factusimple.api.creditnote.dto;
 
+import com.factusimple.api.shared.dto.PaymentRequestDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -15,6 +16,6 @@ public record CreditNoteRequestDto(
         UUID invoiceId,
         String observation,
         @NotEmpty @Valid List<CreditNoteItemRequestDto> items,
-        @NotEmpty @Valid List<CreditNotePaymentRequestDto> payments,
+        @NotEmpty @Valid List<PaymentRequestDto> payments,
         @Valid List<CreditNoteAllowanceChargeRequestDto> allowanceCharges
 ) {}

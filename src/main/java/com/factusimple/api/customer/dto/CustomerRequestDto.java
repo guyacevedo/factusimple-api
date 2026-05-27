@@ -8,54 +8,45 @@ import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CustomerRequestDto {
-
+public record CustomerRequestDto(
     @NotBlank(message = "El tipo de identificación es requerido")
     @ValidFactusCode(IdentityDocumentType.class)
-    private String idTypeCode;
+    String idTypeCode,
 
     @NotBlank(message = "La identificación es requerida")
-    private String identification;
+    String identification,
 
-    private String dv;
+    String dv,
 
     @ValidFactusCode(LegalOrgCode.class)
-    private String legalOrgCode;
+    String legalOrgCode,
 
-    private String company;             // requerido si legalOrgCode = "1"
+    String company,
 
-    private String names;               // requerido si legalOrgCode = "2"
+    String names,
 
-    private String tradeName;
+    String tradeName,
 
-    private String address;
+    String address,
 
     @Email(message = "El email del cliente debe ser válido")
-    private String email;
+    String email,
 
     @Pattern(regexp = "^[+]?[0-9]{7,20}$", message = "Teléfono inválido")
-    private String phone;
+    String phone,
 
-    private String municipalityCode;
+    String municipalityCode,
 
     @ValidFactusCode(TributeCode.class)
-    private String tributeCode;
+    String tributeCode,
 
     @ValidFactusCode(FiscalResponsibilityCode.class)
-    private String fiscalResponsibility;
+    String fiscalResponsibility,
 
-    private BigDecimal creditLimit;
+    BigDecimal creditLimit,
 
-    private Boolean isActive;
-}
+    Boolean isActive
+) {}

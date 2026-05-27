@@ -2,6 +2,7 @@ package com.factusimple.api.creditnote.mapper;
 
 import com.factusimple.api.creditnote.dto.*;
 import com.factusimple.api.creditnote.entity.*;
+import com.factusimple.api.shared.dto.*;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -38,30 +39,30 @@ public interface CreditNoteMapper {
 
     List<CreditNoteItem> itemsToEntityList(List<CreditNoteItemRequestDto> dtos);
 
-    CreditNoteItemTaxResponseDto itemTaxToDto(CreditNoteItemTax itemTax);
+    ItemTaxResponseDto itemTaxToDto(CreditNoteItemTax itemTax);
 
     @Mapping(target = "item", ignore = true)
-    CreditNoteItemTax itemTaxToEntity(CreditNoteItemTaxRequestDto dto);
+    CreditNoteItemTax itemTaxToEntity(ItemTaxRequestDto dto);
 
-    List<CreditNoteItemTaxResponseDto> itemTaxesToDtoList(List<CreditNoteItemTax> taxes);
+    List<ItemTaxResponseDto> itemTaxesToDtoList(List<CreditNoteItemTax> taxes);
 
-    List<CreditNoteItemTax> itemTaxesToEntityList(List<CreditNoteItemTaxRequestDto> dtos);
+    List<CreditNoteItemTax> itemTaxesToEntityList(List<ItemTaxRequestDto> dtos);
 
-    CreditNotePaymentResponseDto paymentToDto(CreditNotePayment payment);
+    PaymentResponseDto paymentToDto(CreditNotePayment payment);
 
     @Mapping(target = "creditNote", ignore = true)
-    CreditNotePayment paymentToEntity(CreditNotePaymentRequestDto dto);
+    CreditNotePayment paymentToEntity(PaymentRequestDto dto);
 
-    List<CreditNotePaymentResponseDto> paymentsToDtoList(List<CreditNotePayment> payments);
+    List<PaymentResponseDto> paymentsToDtoList(List<CreditNotePayment> payments);
 
-    List<CreditNotePayment> paymentsToEntityList(List<CreditNotePaymentRequestDto> dtos);
+    List<CreditNotePayment> paymentsToEntityList(List<PaymentRequestDto> dtos);
 
-    CreditNoteAllowanceChargeResponseDto allowanceChargeToDto(CreditNoteAllowanceCharge allowanceCharge);
+    AllowanceChargeResponseDto allowanceChargeToDto(CreditNoteAllowanceCharge allowanceCharge);
 
     @Mapping(target = "creditNote", ignore = true)
     CreditNoteAllowanceCharge allowanceChargeToEntity(CreditNoteAllowanceChargeRequestDto dto);
 
-    List<CreditNoteAllowanceChargeResponseDto> allowanceChargesToDtoList(List<CreditNoteAllowanceCharge> allowanceCharges);
+    List<AllowanceChargeResponseDto> allowanceChargesToDtoList(List<CreditNoteAllowanceCharge> allowanceCharges);
 
     List<CreditNoteAllowanceCharge> allowanceChargesToEntityList(List<CreditNoteAllowanceChargeRequestDto> dtos);
 }

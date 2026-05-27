@@ -7,41 +7,32 @@ import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProductRequestDto {
-
+public record ProductRequestDto(
     @NotBlank(message = "El SKU es requerido")
-    private String sku;
+    String sku,
 
     @NotBlank(message = "El nombre del producto es requerido")
-    private String name;
+    String name,
 
     @NotNull(message = "El precio es requerido")
     @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo")
-    private BigDecimal price;
+    BigDecimal price,
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El stock no puede ser negativo")
-    private BigDecimal stock;
+    BigDecimal stock,
 
-    private String unitMeasureCode;
+    String unitMeasureCode,
 
-   @ValidFactusCode(ProductStandardCode.class)
-    private String standardCode;
+    @ValidFactusCode(ProductStandardCode.class)
+    String standardCode,
 
     @ValidFactusCode(TaxCode.class)
-    private String taxCode;
+    String taxCode,
 
-    private BigDecimal taxRate;
+    BigDecimal taxRate,
 
-    private Boolean isActive;
-}
+    Boolean isActive
+) {}

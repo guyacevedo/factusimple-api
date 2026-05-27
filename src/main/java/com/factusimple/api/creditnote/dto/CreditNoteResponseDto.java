@@ -1,6 +1,8 @@
 package com.factusimple.api.creditnote.dto;
 
 import com.factusimple.api.creditnote.entity.CreditNoteStatus;
+import com.factusimple.api.shared.dto.AllowanceChargeResponseDto;
+import com.factusimple.api.shared.dto.PaymentResponseDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,8 +24,8 @@ public record CreditNoteResponseDto(
         String xmlUrl,
         String factusError,
         List<CreditNoteItemResponseDto> items,
-        List<CreditNotePaymentResponseDto> payments,
-        List<CreditNoteAllowanceChargeResponseDto> allowanceCharges,
+        List<PaymentResponseDto> payments,
+        List<AllowanceChargeResponseDto> allowanceCharges,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

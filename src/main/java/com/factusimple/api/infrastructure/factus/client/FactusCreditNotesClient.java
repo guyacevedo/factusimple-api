@@ -5,6 +5,7 @@ import com.factusimple.api.creditnote.entity.CreditNoteAllowanceCharge;
 import com.factusimple.api.creditnote.entity.CreditNoteItem;
 import com.factusimple.api.creditnote.entity.CreditNotePayment;
 import com.factusimple.api.infrastructure.exception.ApiException;
+import com.factusimple.api.infrastructure.factus.dto.creditnote.*;
 import com.factusimple.api.user.entity.User;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class FactusCreditNotesClient {
     @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableMapFallback")
     public Map<String, Object> createAtFactus(CreditNote creditNote) {
         User user = creditNote.getEstablishment().getUser();
-        Map<String, Object> payload = buildPayload(creditNote);
+        FactusCreditNotePayloadDto payload = buildPayload(creditNote);
         return executor.executeWithRetry(user, () -> executor.postJson(user, "/v2/credit-notes/validate", payload, Map.class));
     }
 
@@ -92,134 +93,104 @@ public class FactusCreditNotesClient {
 
     // ----- Business Logic -----
 
-    private Map<String, Object> buildPayload(CreditNote creditNote) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("reference_code", creditNote.getReferenceCode());
-        payload.put("correction_concept_code", creditNote.getCorrectionConceptCode());
-        payload.put("customization_id", creditNote.getCustomizationId());
+    private FactusCreditNotePayloadDto buildPayload(CreditNote creditNote) {
+        List<FactusCreditNotePaymentDto> paymentDetails = getPaymentDetails(creditNote);
+        FactusCreditNoteCustomerDto customer = creditNote.getInvoice() != null ? getCustomer(creditNote) : null;
+        List<FactusCreditNoteItemDto> items = getItems(creditNote);
+        List<FactusCreditNoteAllowanceChargeDto> allowanceCharges = !creditNote.getAllowanceCharges().isEmpty()
+                ? getAllowanceCharges(creditNote)
+                : null;
 
-        if (creditNote.getObservation() != null) {
-            payload.put("observation", creditNote.getObservation());
-        }
-
-        if (creditNote.getInvoice() != null) {
-            payload.put("bill_number", creditNote.getInvoice().getFactusNumber());
-        }
-
-        List<Map<String, Object>> paymentDetails = getPaymentDetails(creditNote);
-        payload.put("payment_details", paymentDetails);
-
-        if (creditNote.getInvoice() != null) {
-            Map<String, Object> customer = getCustomer(creditNote);
-            payload.put("customer", customer);
-        }
-
-        List<Map<String, Object>> items = getItems(creditNote);
-        payload.put("items", items);
-
-        if (!creditNote.getAllowanceCharges().isEmpty()) {
-            List<Map<String, Object>> allowanceCharges = getAllowanceCharges(creditNote);
-            payload.put("allowance_charges", allowanceCharges);
-        }
-
-        return payload;
+        return new FactusCreditNotePayloadDto(
+                creditNote.getReferenceCode(),
+                creditNote.getCorrectionConceptCode(),
+                creditNote.getCustomizationId(),
+                creditNote.getObservation(),
+                creditNote.getInvoice() != null ? creditNote.getInvoice().getFactusNumber() : null,
+                customer,
+                items,
+                paymentDetails,
+                allowanceCharges
+        );
     }
 
     @NotNull
-    private static List<Map<String, Object>> getAllowanceCharges(CreditNote creditNote) {
-        List<Map<String, Object>> allowanceCharges = new ArrayList<>();
+    private static List<FactusCreditNoteAllowanceChargeDto> getAllowanceCharges(CreditNote creditNote) {
+        List<FactusCreditNoteAllowanceChargeDto> allowanceCharges = new ArrayList<>();
         for (CreditNoteAllowanceCharge ac : creditNote.getAllowanceCharges()) {
-            Map<String, Object> acMap = new LinkedHashMap<>();
-            acMap.put("concept_type", ac.getConceptType());
-            acMap.put("is_surcharge", ac.isSurcharge());
-            if (ac.getReason() != null) {
-                acMap.put("reason", ac.getReason());
-            }
-            if (ac.getBaseAmount() != null) {
-                acMap.put("base_amount", ac.getBaseAmount());
-            }
-            acMap.put("amount", ac.getAmount());
-            allowanceCharges.add(acMap);
+            FactusCreditNoteAllowanceChargeDto dto = new FactusCreditNoteAllowanceChargeDto(
+                    ac.getConceptType(),
+                    ac.isSurcharge(),
+                    ac.getReason(),
+                    ac.getBaseAmount(),
+                    ac.getAmount()
+            );
+            allowanceCharges.add(dto);
         }
         return allowanceCharges;
     }
 
     @NotNull
-    private static List<Map<String, Object>> getItems(CreditNote creditNote) {
-        List<Map<String, Object>> items = new ArrayList<>();
+    private static List<FactusCreditNoteItemDto> getItems(CreditNote creditNote) {
+        List<FactusCreditNoteItemDto> items = new ArrayList<>();
         for (CreditNoteItem item : creditNote.getItems()) {
-            Map<String, Object> itemMap = new LinkedHashMap<>();
-            if (item.getCodeReference() != null) {
-                itemMap.put("code_reference", item.getCodeReference());
-            }
-            itemMap.put("name", item.getName());
-            itemMap.put("quantity", item.getQuantity());
-            itemMap.put("price", item.getPrice());
-            if (item.getDiscountRate() != null && item.getDiscountRate().compareTo(java.math.BigDecimal.ZERO) > 0) {
-                itemMap.put("discount_rate", item.getDiscountRate());
-            }
-            if (item.getUnitMeasureCode() != null) {
-                itemMap.put("unit_measure_code", item.getUnitMeasureCode());
-            }
-            if (item.getStandardCode() != null) {
-                itemMap.put("standard_code", item.getStandardCode());
-            }
-            if (item.getNote() != null) {
-                itemMap.put("note", item.getNote());
-            }
-
-            List<Map<String, Object>> taxes = new ArrayList<>();
-            List<Map<String, Object>> withholdingTaxes = new ArrayList<>();
+            List<FactusCreditNoteItemTaxDto> taxes = new ArrayList<>();
+            List<FactusCreditNoteItemTaxDto> withholdingTaxes = new ArrayList<>();
             for (var tax : item.getTaxes()) {
-                Map<String, Object> taxMap = new LinkedHashMap<>();
-                taxMap.put("code", tax.getTaxCode());
-                taxMap.put("rate", tax.getTaxRate());
+                FactusCreditNoteItemTaxDto taxDto = new FactusCreditNoteItemTaxDto(
+                        tax.getTaxCode(),
+                        tax.getTaxRate()
+                );
                 if (tax.isWithholding()) {
-                    withholdingTaxes.add(taxMap);
+                    withholdingTaxes.add(taxDto);
                 } else {
-                    taxes.add(taxMap);
+                    taxes.add(taxDto);
                 }
             }
-            if (!taxes.isEmpty()) {
-                itemMap.put("taxes", taxes);
-            }
-            if (!withholdingTaxes.isEmpty()) {
-                itemMap.put("withholding_taxes", withholdingTaxes);
-            }
 
-            items.add(itemMap);
+            FactusCreditNoteItemDto dto = new FactusCreditNoteItemDto(
+                    item.getCodeReference(),
+                    item.getName(),
+                    item.getQuantity(),
+                    item.getPrice(),
+                    item.getDiscountRate() != null && item.getDiscountRate().compareTo(java.math.BigDecimal.ZERO) > 0 ? item.getDiscountRate() : null,
+                    item.getUnitMeasureCode(),
+                    item.getStandardCode(),
+                    item.getNote(),
+                    !taxes.isEmpty() ? taxes : null,
+                    !withholdingTaxes.isEmpty() ? withholdingTaxes : null
+            );
+            items.add(dto);
         }
         return items;
     }
 
     @NotNull
-    private static Map<String, Object> getCustomer(CreditNote creditNote) {
-        Map<String, Object> customer = new LinkedHashMap<>();
-        customer.put("identification", creditNote.getInvoice().getCustomer().getIdentification());
-        customer.put("legal_org_code", creditNote.getInvoice().getCustomer().getLegalOrgCode());
-        customer.put("names", creditNote.getInvoice().getCustomer().getNames());
-        customer.put("email", creditNote.getInvoice().getCustomer().getEmail());
-        customer.put("phone", creditNote.getInvoice().getCustomer().getPhone());
-        customer.put("address", creditNote.getInvoice().getCustomer().getAddress());
-        customer.put("municipality_code", creditNote.getInvoice().getCustomer().getMunicipalityCode());
-        return customer;
+    private static FactusCreditNoteCustomerDto getCustomer(CreditNote creditNote) {
+        var customer = creditNote.getInvoice().getCustomer();
+        return new FactusCreditNoteCustomerDto(
+                customer.getIdentification(),
+                customer.getLegalOrgCode(),
+                customer.getNames(),
+                customer.getEmail(),
+                customer.getPhone(),
+                customer.getAddress(),
+                customer.getMunicipalityCode()
+        );
     }
 
     @NotNull
-    private static List<Map<String, Object>> getPaymentDetails(CreditNote creditNote) {
-        List<Map<String, Object>> paymentDetails = new ArrayList<>();
+    private static List<FactusCreditNotePaymentDto> getPaymentDetails(CreditNote creditNote) {
+        List<FactusCreditNotePaymentDto> paymentDetails = new ArrayList<>();
         for (CreditNotePayment payment : creditNote.getPayments()) {
-            Map<String, Object> pd = new LinkedHashMap<>();
-            pd.put("payment_form", payment.getPaymentForm());
-            pd.put("payment_method_code", payment.getPaymentMethodCode());
-            if (payment.getReferenceCode() != null) {
-                pd.put("reference_code", payment.getReferenceCode());
-            }
-            pd.put("amount", payment.getAmount());
-            if (payment.getDueDate() != null) {
-                pd.put("due_date", payment.getDueDate().toString());
-            }
-            paymentDetails.add(pd);
+            FactusCreditNotePaymentDto dto = new FactusCreditNotePaymentDto(
+                    payment.getPaymentForm(),
+                    payment.getPaymentMethodCode(),
+                    payment.getReferenceCode(),
+                    payment.getAmount(),
+                    payment.getDueDate() != null ? payment.getDueDate().toString() : null
+            );
+            paymentDetails.add(dto);
         }
         return paymentDetails;
     }

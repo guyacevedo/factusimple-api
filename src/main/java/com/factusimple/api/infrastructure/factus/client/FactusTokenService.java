@@ -49,7 +49,7 @@ public class FactusTokenService {
             response = factusAuthClient.generateToken();
         }
 
-        if (response == null || response.getAccess_token() == null) {
+        if (response == null || response.accessToken() == null) {
             throw new ApiException(502, "No se pudo renovar token Factus");
         }
 
@@ -58,16 +58,16 @@ public class FactusTokenService {
         LocalDateTime now = LocalDateTime.now();
         tokenRepository.save(Token.builder()
             .user(user)
-            .token(response.getAccess_token())
+            .token(response.accessToken())
             .tokenType(Token.TokenType.FACTUS_ACCESS)
-            .expiresAt(now.plusSeconds(response.getExpires_in()))
+            .expiresAt(now.plusSeconds(response.expiresIn()))
             .revoked(false)
             .build());
 
-        if (response.getRefresh_token() != null) {
+        if (response.refreshToken() != null) {
             tokenRepository.save(Token.builder()
                 .user(user)
-                .token(response.getRefresh_token())
+                .token(response.refreshToken())
                 .tokenType(Token.TokenType.FACTUS_REFRESH)
                 .expiresAt(now.plusDays(30))
                 .revoked(false)

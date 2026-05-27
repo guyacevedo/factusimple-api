@@ -1,10 +1,7 @@
 package com.factusimple.api.factuscodes.dto;
 
-import lombok.Data;
-
-@Data
-public class MunicipalityDto {
-    private String code;
-    private String name;
-    private DepartmentDto department;
-}
+public record MunicipalityDto(
+    String code,
+    String name,
+    DepartmentDto department
+) {}

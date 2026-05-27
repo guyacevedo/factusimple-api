@@ -13,6 +13,8 @@ import com.factusimple.api.infrastructure.factus.codes.TaxCode;
 import com.factusimple.api.infrastructure.factus.codes.WithholdingTaxCode;
 import com.factusimple.api.invoice.dto.*;
 import com.factusimple.api.invoice.entity.*;
+import com.factusimple.api.shared.dto.ItemTaxRequestDto;
+import com.factusimple.api.shared.dto.PaymentRequestDto;
 import com.factusimple.api.invoice.mapper.InvoiceMapper;
 import com.factusimple.api.invoice.repository.InvoiceRepository;
 import com.factusimple.api.product.entity.Product;
@@ -62,8 +64,8 @@ public class InvoiceService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        validatePayments(requestDto.getPayments());
-        validateItemTaxes(requestDto.getItems());
+        validatePayments(requestDto.payments());
+        validateItemTaxes(requestDto.items());
 
         Invoice saved = createInvoiceLocal(userId, requestDto);
 
@@ -86,28 +88,28 @@ public class InvoiceService {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
         if (invoiceRepository.existsByReferenceCodeAndEstablishmentId(
-                requestDto.getReferenceCode(), establishment.getId())) {
+                requestDto.referenceCode(), establishment.getId())) {
             throw new ConflictException(
-                    "Ya existe una factura con referenceCode '" + requestDto.getReferenceCode()
+                    "Ya existe una factura con referenceCode '" + requestDto.referenceCode()
                             + "' en este establecimiento");
         }
 
         Customer customer = customerRepository
-                .findByIdAndEstablishmentId(requestDto.getCustomerId(), establishment.getId())
+                .findByIdAndEstablishmentId(requestDto.customerId(), establishment.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Customer", "id", requestDto.getCustomerId()));
+                        "Customer", "id", requestDto.customerId()));
 
         Invoice invoice = invoiceMapper.toEntity(requestDto);
         invoice.setEstablishment(establishment);
         invoice.setCustomer(customer);
         invoice.setStatus(InvoiceStatus.PENDING);
         invoice.setDocumentType(InvoiceDocumentType.FACTURA_VENTA.getCode());
-        invoice.setOperationType(requestDto.getOperationType() != null ? requestDto.getOperationType() :InvoiceOperationType.ESTANDAR.getCode());
-        invoice.setSendEmail((requestDto.getSendEmail() != null) && requestDto.getSendEmail());
-        attachItems(invoice, requestDto.getItems(), establishment.getId());
-        attachPayments(invoice, requestDto.getPayments());
-        attachPrepayments(invoice, requestDto.getPrepayments());
-        attachAllowanceCharges(invoice, requestDto.getAllowanceCharges());
+        invoice.setOperationType(requestDto.operationType() != null ? requestDto.operationType() :InvoiceOperationType.ESTANDAR.getCode());
+        invoice.setSendEmail((requestDto.sendEmail() != null) && requestDto.sendEmail());
+        attachItems(invoice, requestDto.items(), establishment.getId());
+        attachPayments(invoice, requestDto.payments());
+        attachPrepayments(invoice, requestDto.prepayments());
+        attachAllowanceCharges(invoice, requestDto.allowanceCharges());
 
         applyTotals(invoice);
         validateStockAvailability(invoice.getItems());
@@ -204,9 +206,9 @@ public class InvoiceService {
         try {
             if (invoice.getFactusNumber() != null) {
                 var complete = factusBillsClient.getBillDetailsFromFactus(user, invoice.getFactusNumber());
-                invoice.setCufe(complete.getCufe());
-                invoice.setXmlUrl(complete.getXmlUrl());
-                invoice.setStatus(complete.isValidated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
+                invoice.setCufe(complete.cufe());
+                invoice.setXmlUrl(complete.xmlUrl());
+                invoice.setStatus(complete.validated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
                 invoice.setFactusError(null);
                 saveInvoiceInTransaction(invoice);
                 log.info("Factura {} ya existía en Factus, datos refrescados", invoice.getId());
@@ -216,17 +218,17 @@ public class InvoiceService {
             var response = factusBillsClient.createBillAtFactus(invoice);
             var parsed = FactusBillsClient.parseBillResponse(response);
 
-            if (parsed.getNumber() != null) {
-                var complete = factusBillsClient.getBillDetailsFromFactus(user, parsed.getNumber());
-                invoice.setFactusNumber(complete.getNumber());
-                invoice.setCufe(complete.getCufe());
-                invoice.setXmlUrl(complete.getXmlUrl());
-                invoice.setStatus(complete.isValidated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
+            if (parsed.number() != null) {
+                var complete = factusBillsClient.getBillDetailsFromFactus(user, parsed.number());
+                invoice.setFactusNumber(complete.number());
+                invoice.setCufe(complete.cufe());
+                invoice.setXmlUrl(complete.xmlUrl());
+                invoice.setStatus(complete.validated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
             } else {
                 invoice.setFactusNumber(null);
-                invoice.setCufe(parsed.getCufe());
-                invoice.setXmlUrl(parsed.getXmlUrl());
-                invoice.setStatus(parsed.isValidated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
+                invoice.setCufe(parsed.cufe());
+                invoice.setXmlUrl(parsed.xmlUrl());
+                invoice.setStatus(parsed.validated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
             }
 
             invoice.setFactusError(null);
@@ -342,10 +344,10 @@ public class InvoiceService {
 
     // ----- Validaciones cruzadas -----
 
-    private void validatePayments(List<InvoicePaymentRequestDto> payments) {
-        for (InvoicePaymentRequestDto p : payments) {
+    private void validatePayments(List<PaymentRequestDto> payments) {
+        for (PaymentRequestDto p : payments) {
             // validar
-            if (p.getPaymentForm().equals("2") && p.getDueDate() == null) {
+            if (p.paymentForm().equals("2") && p.dueDate() == null) {
                 throw new BadRequestException(
                         "Pagos a crédito (paymentForm='2') requieren dueDate");
             }
@@ -354,13 +356,13 @@ public class InvoiceService {
 
     private void validateItemTaxes(List<InvoiceItemRequestDto> items) {
         for (int i = 0; i < items.size(); i++) {
-            List<InvoiceItemTaxRequestDto> taxes = items.get(i).getTaxes();
-            for (InvoiceItemTaxRequestDto tax : taxes) {
-                boolean withholding = Boolean.TRUE.equals(tax.getIsWithholding());
+            List<ItemTaxRequestDto> taxes = items.get(i).taxes();
+            for (ItemTaxRequestDto tax : taxes) {
+                boolean withholding = Boolean.TRUE.equals(tax.isWithholding());
                 Set<String> allowed = withholding ? VALID_WITHHOLDING_CODES : VALID_TAX_CODES;
-                if (!allowed.contains(tax.getTaxCode())) {
+                if (!allowed.contains(tax.taxCode())) {
                     throw new BadRequestException(
-                            "Item #" + (i + 1) + ": código '" + tax.getTaxCode()
+                            "Item #" + (i + 1) + ": código '" + tax.taxCode()
                                     + "' inválido para " + (withholding ? "retención" : "impuesto")
                                     + ". Valores aceptados: " + String.join(", ", allowed));
                 }
@@ -377,11 +379,11 @@ public class InvoiceService {
             InvoiceItemRequestDto dto = dtos.get(i);
 
             item.setInvoice(invoice);
-            if (dto.getProductId() != null) {
+            if (dto.productId() != null) {
                 Product product = productRepository
-                        .findByIdAndEstablishmentId(dto.getProductId(), establishmentId)
+                        .findByIdAndEstablishmentId(dto.productId(), establishmentId)
                         .orElseThrow(() -> new ResourceNotFoundException(
-                                "Product", "id", dto.getProductId()));
+                                "Product", "id", dto.productId()));
                 item.setProduct(product);
             }
             for (InvoiceItemTax tax : item.getTaxes()) {
@@ -394,7 +396,7 @@ public class InvoiceService {
         invoice.getItems().addAll(items);
     }
 
-    private void attachPayments(Invoice invoice, List<InvoicePaymentRequestDto> dtos) {
+    private void attachPayments(Invoice invoice, List<PaymentRequestDto> dtos) {
         List<InvoicePayment> payments = invoiceMapper.paymentsToEntity(dtos);
         payments.forEach(p -> p.setInvoice(invoice));
         invoice.getPayments().addAll(payments);

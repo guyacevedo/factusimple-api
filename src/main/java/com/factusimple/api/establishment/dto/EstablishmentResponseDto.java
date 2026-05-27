@@ -1,32 +1,22 @@
 package com.factusimple.api.establishment.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class EstablishmentResponseDto {
-
-    private UUID id;
-    private UUID userId;
-    private String name;
-    private String address;
-    private String phoneNumber;
-    private String email;
-    private String municipalityCode;
-    private String nit;
-    private String dv;
-    private String legalOrgCode;
-    private String tributeCode;
-    private String fiscalResponsibility;
-    private Integer numberingRangeId;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-}
+public record EstablishmentResponseDto(
+    UUID id,
+    UUID userId,
+    String name,
+    String address,
+    String phoneNumber,
+    String email,
+    String municipalityCode,
+    String nit,
+    String dv,
+    String legalOrgCode,
+    String tributeCode,
+    String fiscalResponsibility,
+    Integer numberingRangeId,
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt
+) {}

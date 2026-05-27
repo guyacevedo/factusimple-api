@@ -45,8 +45,8 @@ public class AuthService {
     @Transactional
     public LoginResponseDto register(RegisterRequestDto request) {
         createUserLocal(request);
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.email()));
 
         FactusAuthResponseDto generatedToken = factusAuthClient.generateToken();
         validateFactusResponse(generatedToken);
@@ -59,7 +59,7 @@ public class AuthService {
 
     @Transactional
     protected void createUserLocal(RegisterRequestDto request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("El email ya está registrado");
         }
 
@@ -67,11 +67,11 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("Plan", "name", "FREE"));
 
         User user = User.builder()
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .phone(request.getPhone())
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .firstName(request.firstName())
+                .lastName(request.lastName())
+                .phone(request.phone())
                 .role(Role.ESTABLISHMENT)
                 .plan(defaultPlan)
                 .invoiceCount(0)
@@ -81,7 +81,7 @@ public class AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
-        establishmentService.createForUser(savedUser, request.getEstablishment());
+        establishmentService.createForUser(savedUser, request.establishment());
     }
 
     /**
@@ -102,10 +102,10 @@ public class AuthService {
 
     @Transactional
     protected User validateCredentialsLocal(LoginRequestDto request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new UnauthorizedException("Email o contraseña incorrectos");
         }
 
@@ -123,7 +123,7 @@ public class AuthService {
      */
     @Transactional
     public LoginResponseDto refreshToken(RefreshTokenRequestDto request) {
-        Token refreshTokenEntity = validateRefreshTokenLocal(request.getRefreshToken());
+        Token refreshTokenEntity = validateRefreshTokenLocal(request.refreshToken());
         User user = refreshTokenEntity.getUser();
 
         String factusRefreshToken = refreshTokenEntity.getFactusToken();
@@ -196,7 +196,7 @@ public class AuthService {
         Token accessToken = Token.builder()
                 .user(user)
                 .token(internalAccessToken)
-                .factusToken(authResponse.getAccess_token())
+                .factusToken(authResponse.accessToken())
                 .tokenType(Token.TokenType.ACCESS)
                 .expiresAt(accessTokenExpiresAt)
                 .revoked(false)
@@ -209,7 +209,7 @@ public class AuthService {
         Token refreshToken = Token.builder()
                 .user(user)
                 .token(internalRefreshToken)
-                .factusToken(authResponse.getRefresh_token())
+                .factusToken(authResponse.refreshToken())
                 .tokenType(Token.TokenType.REFRESH)
                 .expiresAt(LocalDateTime.now().plusDays(30))
                 .revoked(false)
@@ -232,8 +232,8 @@ public class AuthService {
     private void validateFactusResponse(FactusAuthResponseDto response) {
 
         if (response == null
-                || response.getAccess_token() == null
-                || response.getRefresh_token() == null) {
+                || response.accessToken() == null
+                || response.refreshToken() == null) {
 
             throw new UnauthorizedException(
                     "No fue posible generar tokens con Factus"
@@ -251,11 +251,11 @@ public class AuthService {
 
         long expiresIn = ChronoUnit.SECONDS.between(LocalDateTime.now(), accessToken.getExpiresAt());
 
-        return LoginResponseDto.builder()
-                .accessToken(accessToken.getToken())
-                .refreshToken(refreshToken.getToken())
-                .expiresIn(expiresIn)
-                .user(userMapper.toDto(user))
-                .build();
+        return new LoginResponseDto(
+            accessToken.getToken(),
+            refreshToken.getToken(),
+            expiresIn,
+            userMapper.toDto(user)
+        );
     }
 }

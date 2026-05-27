@@ -39,9 +39,9 @@ public class ProductService {
 
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
-        if (productRepository.existsBySkuAndEstablishmentId(requestDto.getSku(), establishment.getId())) {
+        if (productRepository.existsBySkuAndEstablishmentId(requestDto.sku(), establishment.getId())) {
             throw new ConflictException(
-                    "Ya existe un producto con SKU '" + requestDto.getSku() + "' en este establecimiento");
+                    "Ya existe un producto con SKU '" + requestDto.sku() + "' en este establecimiento");
         }
 
         Product product = productMapper.toEntity(requestDto);
@@ -81,11 +81,11 @@ public class ProductService {
     public ProductResponseDto update(UUID userId, UUID productId, ProductRequestDto requestDto) {
         Product product = requireOwned(userId, productId);
 
-        if (!product.getSku().equals(requestDto.getSku())
+        if (!product.getSku().equals(requestDto.sku())
                 && productRepository.existsBySkuAndEstablishmentId(
-                        requestDto.getSku(), product.getEstablishment().getId())) {
+                        requestDto.sku(), product.getEstablishment().getId())) {
             throw new ConflictException(
-                    "Ya existe un producto con SKU '" + requestDto.getSku() + "' en este establecimiento");
+                    "Ya existe un producto con SKU '" + requestDto.sku() + "' en este establecimiento");
         }
 
         productMapper.updateEntity(requestDto, product);

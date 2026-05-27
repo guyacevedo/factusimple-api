@@ -8,6 +8,8 @@ import com.factusimple.api.infrastructure.factus.codes.TaxCode;
 import com.factusimple.api.infrastructure.factus.codes.WithholdingTaxCode;
 import com.factusimple.api.invoice.dto.*;
 import com.factusimple.api.invoice.entity.*;
+import com.factusimple.api.shared.dto.ItemTaxRequestDto;
+import com.factusimple.api.shared.dto.PaymentRequestDto;
 import com.factusimple.api.invoice.mapper.InvoiceMapper;
 import com.factusimple.api.invoice.repository.InvoiceRepository;
 import com.factusimple.api.product.entity.Product;
@@ -244,9 +246,9 @@ class InvoiceServiceTest {
         @Test
         @DisplayName("Should validate credit payment requires due date")
         void testCreditPaymentRequiresDueDate() {
-            InvoicePaymentRequestDto payment = new InvoicePaymentRequestDto();
-            payment.setPaymentForm("2");
-            payment.setDueDate(null);
+            PaymentRequestDto payment = new PaymentRequestDto(
+                "2", "05", null, BigDecimal.ZERO, null
+            );
 
             assertThrows(BadRequestException.class, () -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validatePayments",List.of(payment));
@@ -256,9 +258,9 @@ class InvoiceServiceTest {
         @Test
         @DisplayName("Should accept credit payment with due date")
         void testCreditPaymentWithDueDate() {
-            InvoicePaymentRequestDto payment = new InvoicePaymentRequestDto();
-            payment.setPaymentForm("2");
-            payment.setDueDate(LocalDate.of(2026, 6, 30));
+            PaymentRequestDto payment = new PaymentRequestDto(
+                "2", "05", null, BigDecimal.ZERO, LocalDate.of(2026, 6, 30)
+            );
 
             assertDoesNotThrow(() -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validatePayments",List.of(payment));
@@ -268,9 +270,9 @@ class InvoiceServiceTest {
         @Test
         @DisplayName("Should accept cash payment without due date")
         void testCashPaymentWithoutDueDate() {
-            InvoicePaymentRequestDto payment = new InvoicePaymentRequestDto();
-            payment.setPaymentForm("1");
-            payment.setDueDate(null);
+            PaymentRequestDto payment = new PaymentRequestDto(
+                "1", "10", null, BigDecimal.ZERO, null
+            );
 
             assertDoesNotThrow(() -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validatePayments",List.of(payment));
@@ -294,11 +296,10 @@ class InvoiceServiceTest {
         @DisplayName("Should accept valid IVA tax code")
         void testValidIvaTaxCode() {
             InvoiceItemRequestDto item = createItemRequest();
-            InvoiceItemTaxRequestDto tax = new InvoiceItemTaxRequestDto();
-            tax.setTaxCode(TaxCode.IVA.getCode());
-            tax.setIsWithholding(false);
-            tax.setTaxRate(new BigDecimal("19"));
-            item.getTaxes().add(tax);
+            ItemTaxRequestDto tax = new ItemTaxRequestDto(
+                TaxCode.IVA.getCode(), new BigDecimal("19"), false
+            );
+            item.taxes().add(tax);
 
             assertDoesNotThrow(() -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validateItemTaxes",List.of(item));
@@ -309,10 +310,10 @@ class InvoiceServiceTest {
         @DisplayName("Should reject invalid tax code")
         void testInvalidTaxCode() {
             InvoiceItemRequestDto item = createItemRequest();
-            InvoiceItemTaxRequestDto tax = new InvoiceItemTaxRequestDto();
-            tax.setTaxCode("INVALID");
-            tax.setIsWithholding(false);
-            item.getTaxes().add(tax);
+            ItemTaxRequestDto tax = new ItemTaxRequestDto(
+                "INVALID", BigDecimal.ZERO, false
+            );
+            item.taxes().add(tax);
 
             assertThrows(BadRequestException.class, () -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validateItemTaxes",List.of(item));
@@ -323,11 +324,10 @@ class InvoiceServiceTest {
         @DisplayName("Should accept valid withholding tax code")
         void testValidWithholdingTaxCode() {
             InvoiceItemRequestDto item = createItemRequest();
-            InvoiceItemTaxRequestDto tax = new InvoiceItemTaxRequestDto();
-            tax.setTaxCode(WithholdingTaxCode.RETE_IVA.getCode());
-            tax.setIsWithholding(true);
-            tax.setTaxRate(new BigDecimal("1"));
-            item.getTaxes().add(tax);
+            ItemTaxRequestDto tax = new ItemTaxRequestDto(
+                WithholdingTaxCode.RETE_IVA.getCode(), new BigDecimal("1"), true
+            );
+            item.taxes().add(tax);
 
             assertDoesNotThrow(() -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validateItemTaxes",List.of(item));
@@ -338,10 +338,10 @@ class InvoiceServiceTest {
         @DisplayName("Should reject invalid withholding tax code")
         void testInvalidWithholdingTaxCode() {
             InvoiceItemRequestDto item = createItemRequest();
-            InvoiceItemTaxRequestDto tax = new InvoiceItemTaxRequestDto();
-            tax.setTaxCode(TaxCode.IVA.getCode());
-            tax.setIsWithholding(true);
-            item.getTaxes().add(tax);
+            ItemTaxRequestDto tax = new ItemTaxRequestDto(
+                TaxCode.IVA.getCode(), BigDecimal.ZERO, true
+            );
+            item.taxes().add(tax);
 
             assertThrows(BadRequestException.class, () -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validateItemTaxes",List.of(item));
@@ -351,8 +351,10 @@ class InvoiceServiceTest {
         @Test
         @DisplayName("Should accept empty tax list")
         void testEmptyTaxList() {
-            InvoiceItemRequestDto item = createItemRequest();
-            item.setTaxes(List.of());
+            InvoiceItemRequestDto item = new InvoiceItemRequestDto(
+                null, null, "Test Item", new BigDecimal("1"), new BigDecimal("100"),
+                null, null, null, null, List.of()
+            );
 
             assertDoesNotThrow(() -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validateItemTaxes",List.of(item));
@@ -364,15 +366,15 @@ class InvoiceServiceTest {
         void testMultipleValidTaxes() {
             InvoiceItemRequestDto item = createItemRequest();
 
-            InvoiceItemTaxRequestDto tax1 = new InvoiceItemTaxRequestDto();
-            tax1.setTaxCode(TaxCode.IVA.getCode());
-            tax1.setIsWithholding(false);
-            item.getTaxes().add(tax1);
+            ItemTaxRequestDto tax1 = new ItemTaxRequestDto(
+                TaxCode.IVA.getCode(), BigDecimal.ZERO, false
+            );
+            item.taxes().add(tax1);
 
-            InvoiceItemTaxRequestDto tax2 = new InvoiceItemTaxRequestDto();
-            tax2.setTaxCode(WithholdingTaxCode.RETE_IVA.getCode());
-            tax2.setIsWithholding(true);
-            item.getTaxes().add(tax2);
+            ItemTaxRequestDto tax2 = new ItemTaxRequestDto(
+                WithholdingTaxCode.RETE_IVA.getCode(), BigDecimal.ZERO, true
+            );
+            item.taxes().add(tax2);
 
             assertDoesNotThrow(() -> {
                 ReflectionTestUtils.invokeMethod(invoiceService, "validateItemTaxes",List.of(item));
@@ -536,8 +538,17 @@ class InvoiceServiceTest {
     }
 
     private InvoiceItemRequestDto createItemRequest() {
-        InvoiceItemRequestDto item = new InvoiceItemRequestDto();
-        item.setTaxes(new ArrayList<>());
-        return item;
+        return new InvoiceItemRequestDto(
+            null,                      // productId
+            null,                      // codeReference
+            "Test Item",               // name
+            new BigDecimal("1"),       // quantity
+            new BigDecimal("100"),     // unitPrice
+            null,                      // discountRate
+            null,                      // unitMeasureCode
+            null,                      // standardCode
+            null,                      // note
+            new ArrayList<>()          // taxes (mutable list for adding items in tests)
+        );
     }
 }

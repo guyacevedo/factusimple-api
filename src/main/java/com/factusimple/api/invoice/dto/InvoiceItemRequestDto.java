@@ -2,50 +2,42 @@ package com.factusimple.api.invoice.dto;
 
 import com.factusimple.api.infrastructure.factus.codes.ProductStandardCode;
 import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
+import com.factusimple.api.shared.dto.ItemTaxRequestDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class InvoiceItemRequestDto {
+public record InvoiceItemRequestDto(
+    UUID productId,
 
-    private UUID productId;
-
-    private String codeReference;
+    String codeReference,
 
     @NotBlank
-    private String name;
+    String name,
 
     @NotNull
     @DecimalMin(value = "0.01", message = "La cantidad debe ser mayor a 0")
-    private BigDecimal quantity;
+    BigDecimal quantity,
 
     @NotNull
     @DecimalMin(value = "0.0", message = "El precio unitario no puede ser negativo")
-    private BigDecimal unitPrice;
+    BigDecimal unitPrice,
 
     @DecimalMin(value = "0.0", message = "El descuento no puede ser negativo")
     @DecimalMax(value = "100.0", message = "El descuento no puede superar 100%")
-    private BigDecimal discountRate;
+    BigDecimal discountRate,
 
-    private String unitMeasureCode;
+    String unitMeasureCode,
 
     @ValidFactusCode(ProductStandardCode.class)
-    private String standardCode;
+    String standardCode,
 
-    private String note;
+    String note,
 
     @NotEmpty(message = "Cada item requiere al menos un impuesto (use 0% si no aplica)")
     @Valid
-    private List<InvoiceItemTaxRequestDto> taxes;
-}
+    List<ItemTaxRequestDto> taxes
+) {}

@@ -7,41 +7,32 @@ import com.factusimple.api.infrastructure.factus.validation.ValidFactusCode;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class EstablishmentRequestDto {
-
+public record EstablishmentRequestDto(
     @NotBlank(message = "La razón social es requerida")
-    private String name;
+    String name,
 
-    private String address;
+    String address,
 
     @Pattern(regexp = "^[+]?[0-9]{7,20}$", message = "Teléfono inválido")
-    private String phoneNumber;
+    String phoneNumber,
 
     @Email(message = "El email del establecimiento debe ser válido")
-    private String email;
+    String email,
 
-    private String municipalityCode;
+    String municipalityCode,
 
     @NotBlank(message = "El NIT es requerido")
-    private String nit;
+    String nit,
 
-    private String dv;
+    String dv,
 
     @ValidFactusCode(LegalOrgCode.class)
-    private String legalOrgCode;
+    String legalOrgCode,
 
     @ValidFactusCode(TributeCode.class)
-    private String tributeCode;
+    String tributeCode,
 
     @ValidFactusCode(FiscalResponsibilityCode.class)
-    private String fiscalResponsibility;
-}
+    String fiscalResponsibility
+) {}
