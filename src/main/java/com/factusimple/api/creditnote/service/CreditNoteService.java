@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
@@ -44,6 +45,7 @@ public class CreditNoteService {
     private final EstablishmentService establishmentService;
     private final FactusCreditNotesClient factusCreditNotesClient;
     private final EntityManager entityManager;
+    private final CreditNoteSyncScheduler creditNoteSyncScheduler;
 
     @Transactional
     public CreditNoteResponseDto create(UUID userId, CreditNoteRequestDto dto) {
@@ -107,49 +109,9 @@ public class CreditNoteService {
 
         creditNote = creditNoteRepository.save(creditNote);
         entityManager.flush();
-        syncToFactusSafely(user, creditNote);
+        creditNoteSyncScheduler.syncWithFactusInNewTransaction(user, creditNote.getId());
 
         return creditNoteMapper.toDto(creditNoteRepository.save(creditNote));
-    }
-
-    private void syncToFactusSafely(User user, CreditNote creditNote) {
-        try {
-            if (creditNote.getFactusNumber() != null) {
-                var details = factusCreditNotesClient.getDetailsFromFactus(user, creditNote.getFactusNumber());
-                creditNote.setStatus(details.validated() ? CreditNoteStatus.VALIDATED : CreditNoteStatus.PENDING);
-                return;
-            }
-
-            Map<String, Object> response = factusCreditNotesClient.createAtFactus(creditNote);
-            var result = FactusCreditNotesClient.parseResponse(response);
-
-            if (result.number() != null) {
-                var details = factusCreditNotesClient.getDetailsFromFactus(user, result.number());
-                creditNote.setFactusNumber(details.number());
-                creditNote.setCufe(details.cufe());
-                creditNote.setXmlUrl(details.xmlUrl());
-                creditNote.setStatus(details.validated() ? CreditNoteStatus.VALIDATED : CreditNoteStatus.PENDING);
-            }
-            creditNote.setFactusError(null);
-
-            if (creditNote.getStatus() == CreditNoteStatus.VALIDATED && creditNote.getInvoice() != null) {
-                Invoice invoice = creditNote.getInvoice();
-                invoice.setStatus(InvoiceStatus.CANCELLED);
-                invoiceRepository.save(invoice);
-                userRepository.decrementInvoiceCount(invoice.getEstablishment().getUser().getId());
-
-                if ("1".equals(creditNote.getCorrectionConceptCode()) || "2".equals(creditNote.getCorrectionConceptCode())) {
-                    restoreStock(creditNote.getItems());
-                }
-            }
-
-            creditNoteRepository.save(creditNote);
-        } catch (Exception e) {
-            creditNote.setStatus(CreditNoteStatus.ERROR);
-            creditNote.setFactusError(truncate(extractDetailedError(e)));
-            creditNoteRepository.save(creditNote);
-            log.error("Error syncing credit note with Factus: {}", e.getMessage(), e);
-        }
     }
 
     @Transactional
@@ -163,8 +125,9 @@ public class CreditNoteService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId.toString()));
-        syncToFactusSafely(user, creditNote);
-        return creditNoteMapper.toDto(creditNoteRepository.save(creditNote));
+        creditNoteSyncScheduler.syncWithFactusInNewTransaction(user, cnId);
+        creditNote = requireOwned(cnId, establishment.getId());
+        return creditNoteMapper.toDto(creditNote);
     }
 
     @Transactional
@@ -210,7 +173,6 @@ public class CreditNoteService {
         return creditNoteMapper.toDto(creditNote);
     }
 
-    @Transactional
     public byte[] downloadPdf(UUID userId, UUID cnId) {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
         CreditNote creditNote = requireOwned(cnId, establishment.getId());
@@ -224,7 +186,6 @@ public class CreditNoteService {
         return factusCreditNotesClient.downloadPdf(user, creditNote.getFactusNumber());
     }
 
-    @Transactional
     public byte[] downloadXml(UUID userId, UUID cnId) {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
         CreditNote creditNote = requireOwned(cnId, establishment.getId());
@@ -250,23 +211,5 @@ public class CreditNoteService {
     private CreditNote requireOwned(UUID cnId, UUID establishmentId) {
         return creditNoteRepository.findByIdAndEstablishmentId(cnId, establishmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("CreditNote", "id", cnId.toString()));
-    }
-
-    private static String truncate(String value) {
-        if (value == null) return null;
-        return value.length() <= 2000 ? value : value.substring(0, 2000);
-    }
-
-    private static String extractDetailedError(Exception ex) {
-        if (ex instanceof com.factusimple.api.infrastructure.exception.ApiException apiEx) {
-            return apiEx.getMessage();
-        }
-        if (ex != null && ex.getMessage() != null && !ex.getMessage().isEmpty()) {
-            return ex.getMessage();
-        }
-        if (ex != null && ex.getCause() != null && ex.getCause().getMessage() != null) {
-            return ex.getCause().getMessage();
-        }
-        return ex != null ? ex.getClass().getSimpleName() : "Unknown error";
     }
 }

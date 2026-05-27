@@ -162,6 +162,7 @@ public class AuthService {
         FactusAuthResponseDto generatedToken = factusAuthClient.refreshToken(factusRefreshToken);
         validateFactusResponse(generatedToken);
 
+        revokeAllUserTokens(user);
         Token accessToken = saveTokensLocal(user, generatedToken);
         log.info("Token refrescado para usuario: {}", user.getEmail());
 
@@ -183,7 +184,6 @@ public class AuthService {
 
         User user = refreshTokenEntity.getUser();
         Hibernate.initialize(user.getPlan());
-        revokeAllUserTokens(user);
         return refreshTokenEntity;
     }
 

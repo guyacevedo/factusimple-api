@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
@@ -58,6 +59,7 @@ public class InvoiceService {
     private final UserRepository userRepository;
     private final FactusBillsClient factusBillsClient;
     private final EntityManager entityManager;
+    private final InvoiceSyncScheduler invoiceSyncScheduler;
 
     @Transactional
     public InvoiceResponseDto create(UUID userId, InvoiceRequestDto requestDto) {
@@ -76,9 +78,7 @@ public class InvoiceService {
                     "Límite del plan alcanzado: " + user.getPlan().getMaxInvoices() + " facturas");
         }
 
-        // Sync síncrono con Factus. Errores no abortan la creación local
-        // (la factura queda con status=ERROR + factusError para poder reintentar).
-        syncToFactusSafely(user, saved);
+        invoiceSyncScheduler.syncWithFactusInNewTransaction(user, saved.getId());
 
         return invoiceMapper.toDto(saved);
     }
@@ -130,7 +130,8 @@ public class InvoiceService {
     @Transactional
     public InvoiceResponseDto syncWithFactus(UUID userId, UUID invoiceId) {
         Invoice invoice = getAndValidateForSync(userId, invoiceId);
-        syncToFactusSafely(invoice.getEstablishment().getUser(), invoice);
+        invoiceSyncScheduler.syncWithFactusInNewTransaction(invoice.getEstablishment().getUser(), invoiceId);
+        invoice = invoiceRepository.findById(invoiceId).orElseThrow(() -> new ResourceNotFoundException("Invoice", "id", invoiceId));
         return invoiceMapper.toDto(invoice);
     }
 
@@ -188,62 +189,16 @@ public class InvoiceService {
         userRepository.decrementInvoiceCount(userId);
     }
 
-    @Transactional
     public byte[] downloadPdf(UUID userId, UUID invoiceId) {
         Invoice invoice = requireValidated(userId, invoiceId);
         return factusBillsClient.downloadPdf(invoice.getEstablishment().getUser(), invoice.getFactusNumber());
     }
 
-    @Transactional
     public byte[] downloadXml(UUID userId, UUID invoiceId) {
         Invoice invoice = requireValidated(userId, invoiceId);
         return factusBillsClient.downloadXml(invoice.getEstablishment().getUser(), invoice.getFactusNumber());
     }
 
-    private void syncToFactusSafely(User user, Invoice invoice) {
-        try {
-            if (invoice.getFactusNumber() != null) {
-                var complete = factusBillsClient.getBillDetailsFromFactus(user, invoice.getFactusNumber());
-                invoice.setCufe(complete.cufe());
-                invoice.setXmlUrl(complete.xmlUrl());
-                invoice.setStatus(complete.validated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
-                invoice.setFactusError(null);
-                saveInvoiceInTransaction(invoice);
-                log.info("Factura {} ya existía en Factus, datos refrescados", invoice.getId());
-                return;
-            }
-
-            var response = factusBillsClient.createBillAtFactus(invoice);
-            var parsed = FactusBillsClient.parseBillResponse(response);
-
-            if (parsed.number() != null) {
-                var complete = factusBillsClient.getBillDetailsFromFactus(user, parsed.number());
-                invoice.setFactusNumber(complete.number());
-                invoice.setCufe(complete.cufe());
-                invoice.setXmlUrl(complete.xmlUrl());
-                invoice.setStatus(complete.validated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
-            } else {
-                invoice.setFactusNumber(null);
-                invoice.setCufe(parsed.cufe());
-                invoice.setXmlUrl(parsed.xmlUrl());
-                invoice.setStatus(parsed.validated() ? InvoiceStatus.VALIDATED : InvoiceStatus.PENDING);
-            }
-
-            invoice.setFactusError(null);
-            saveInvoiceInTransaction(invoice);
-            log.info("Factura sincronizada con Factus: id={}, factusNumber={}, status={}",
-                    invoice.getId(), invoice.getFactusNumber(), invoice.getStatus());
-        } catch (Exception e) {
-            log.error("Sync con Factus falló para invoice {}: {}", invoice.getId(), e.getMessage(), e);
-            invoice.setStatus(InvoiceStatus.ERROR);
-            invoice.setFactusError(truncate(extractDetailedError(e)));
-            saveInvoiceInTransaction(invoice);
-        }
-    }
-
-    private void saveInvoiceInTransaction(Invoice invoice) {
-        invoiceRepository.save(invoice);
-    }
 
     private Invoice requireValidated(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
@@ -252,24 +207,6 @@ public class InvoiceService {
                     "La factura no está validada en Factus (status=" + invoice.getStatus() + ")");
         }
         return invoice;
-    }
-
-    private static String truncate(String value) {
-        if (value == null) return null;
-        return value.length() <= 2000 ? value : value.substring(0, 2000);
-    }
-
-    private static String extractDetailedError(Exception ex) {
-        if (ex instanceof ApiException apiEx) {
-            return apiEx.getMessage();
-        }
-        if (ex != null && ex.getMessage() != null && !ex.getMessage().isEmpty()) {
-            return ex.getMessage();
-        }
-        if (ex != null && ex.getCause() != null && ex.getCause().getMessage() != null) {
-            return ex.getCause().getMessage();
-        }
-        return ex != null ? ex.getClass().getSimpleName() : "Unknown error";
     }
 
     @Transactional(readOnly = true)
