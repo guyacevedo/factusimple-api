@@ -26,6 +26,8 @@ public class ProductController {
     private final ProductService productService;
 
     @PostMapping
+    @SuppressWarnings("DuplicateStringLiteralInspection")
+
     public ResponseEntity<ApiResponseDto<ProductResponseDto>> create(
             @AuthenticationPrincipal CustomUserDetails principal,
             @Valid @RequestBody ProductRequestDto requestDto) {
@@ -39,7 +41,7 @@ public class ProductController {
             @AuthenticationPrincipal CustomUserDetails principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         Page<ProductResponseDto> productsPage = productService.list(principal.getUserId(), pageable);
         return ResponseEntity.ok(ApiResponseDto.success("Productos obtenidos", PageResponseDto.from(productsPage)));
     }

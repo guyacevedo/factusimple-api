@@ -43,7 +43,7 @@ public class CreditNoteController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) CreditNoteStatus status) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         Page<CreditNoteResponseDto> creditNotesPage = creditNoteService.list(principal.getUserId(), status, pageable);
         return ResponseEntity.ok(ApiResponseDto.success("Notas de crédito obtenidas", PageResponseDto.from(creditNotesPage)));
     }

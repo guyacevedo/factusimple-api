@@ -50,7 +50,7 @@ public class PlanController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         Page<PlanResponseDto> plansPage = planService.listPlans(pageable);
         return ResponseEntity.ok(ApiResponseDto.success("Plans retrieved successfully", PageResponseDto.from(plansPage)));
     }

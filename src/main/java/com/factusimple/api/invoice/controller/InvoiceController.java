@@ -44,7 +44,7 @@ public class InvoiceController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) InvoiceStatus status,
             @RequestParam(required = false) UUID customerId) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         Page<InvoiceResponseDto> invoicesPage = invoiceService.list(principal.getUserId(), status, customerId, pageable);
         return ResponseEntity.ok(ApiResponseDto.success("Facturas obtenidas", PageResponseDto.from(invoicesPage)));
     }

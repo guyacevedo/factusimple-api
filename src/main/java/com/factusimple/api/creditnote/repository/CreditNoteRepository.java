@@ -23,5 +23,5 @@ public interface CreditNoteRepository extends JpaRepository<CreditNote, UUID> {
     @EntityGraph(attributePaths = {"items", "payments", "allowanceCharges", "invoice"})
     Page<CreditNote> findByEstablishmentIdAndStatus(UUID establishmentId, CreditNoteStatus status, Pageable pageable);
 
-    boolean existsByReferenceCode(String referenceCode);
+    boolean existsByReferenceCodeAndEstablishmentId(String referenceCode, UUID establishmentId);
 }

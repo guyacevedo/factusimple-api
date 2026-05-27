@@ -4,10 +4,12 @@ import com.factusimple.api.auth.entity.Token;
 import com.factusimple.api.auth.repository.TokenRepository;
 import com.factusimple.api.infrastructure.exception.ApiException;
 import com.factusimple.api.infrastructure.factus.dto.FactusAuthResponseDto;
+import com.factusimple.api.infrastructure.security.EncryptionService;
 import com.factusimple.api.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -19,6 +21,7 @@ public class FactusTokenService {
 
     private final TokenRepository tokenRepository;
     private final FactusAuthClient factusAuthClient;
+    private final EncryptionService encryptionService;
 
     public String getToken(User user) {
         Optional<Token> tokenOpt = findActiveToken(user);
@@ -29,9 +32,11 @@ public class FactusTokenService {
         if (tokenOpt.isEmpty()) {
             throw new ApiException(502, "Token no encontrado para Factus");
         }
-        return tokenOpt.get().getToken();
+        Token token = tokenOpt.get();
+        return encryptionService.decrypt(token.getToken());
     }
 
+    @Transactional
     public void refreshAndSaveToken(User user) {
         Optional<Token> refreshTokenOpt = tokenRepository
             .findAllByUserAndRevokedAndTokenType(user, false, Token.TokenType.FACTUS_REFRESH);
@@ -40,7 +45,8 @@ public class FactusTokenService {
 
         if (refreshTokenOpt.isPresent()) {
             try {
-                response = factusAuthClient.refreshToken(refreshTokenOpt.get().getToken());
+                String decryptedRefreshToken = encryptionService.decrypt(refreshTokenOpt.get().getToken());
+                response = factusAuthClient.refreshToken(decryptedRefreshToken);
             } catch (Exception e) {
                 log.warn("Refresh token inválido o expirado, generando nuevo token: {}", e.getMessage());
                 response = factusAuthClient.generateToken();
@@ -58,7 +64,7 @@ public class FactusTokenService {
         LocalDateTime now = LocalDateTime.now();
         tokenRepository.save(Token.builder()
             .user(user)
-            .token(response.accessToken())
+            .token(encryptionService.encrypt(response.accessToken()))
             .tokenType(Token.TokenType.FACTUS_ACCESS)
             .expiresAt(now.plusSeconds(response.expiresIn()))
             .revoked(false)
@@ -67,7 +73,7 @@ public class FactusTokenService {
         if (response.refreshToken() != null) {
             tokenRepository.save(Token.builder()
                 .user(user)
-                .token(response.refreshToken())
+                .token(encryptionService.encrypt(response.refreshToken()))
                 .tokenType(Token.TokenType.FACTUS_REFRESH)
                 .expiresAt(now.plusDays(30))
                 .revoked(false)

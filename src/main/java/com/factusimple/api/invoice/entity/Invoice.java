@@ -29,11 +29,13 @@ import java.util.List;
                 columnNames = {"establishment_id", "reference_code"}
         )
 )
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Invoice extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -86,7 +88,7 @@ public class Invoice extends BaseEntity {
     private BigDecimal total = BigDecimal.ZERO;
 
     // Respuesta Factus (post-validación, llenado en Fase 4)
-    @Column(length = 100)
+    @Column(length = 200)
     private String cufe;
 
     @Column(name = "xml_url", columnDefinition = "TEXT")

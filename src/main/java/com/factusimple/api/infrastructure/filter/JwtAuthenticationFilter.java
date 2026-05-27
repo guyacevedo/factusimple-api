@@ -133,6 +133,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         UserDetails userDetails =
                 userDetailsService.loadUserByUsername(email);
 
+        if (!userDetails.isEnabled()) {
+            log.warn("Intento de autenticación con cuenta deshabilitada: {}", email);
+            return;
+        }
+
         UsernamePasswordAuthenticationToken authToken =
                 new UsernamePasswordAuthenticationToken(
                         userDetails,

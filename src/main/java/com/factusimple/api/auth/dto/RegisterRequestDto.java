@@ -13,6 +13,8 @@ public record RegisterRequestDto(
     String email,
 
     @NotBlank(message = "La contraseña es requerida")
+    @jakarta.validation.constraints.Size(min = 8, max = 100, message = "La contraseña debe tener entre 8 y 100 caracteres")
+    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$", message = "La contraseña debe contener mayúsculas, minúsculas y números")
     String password,
 
     @NotBlank(message = "El nombre es requerido")

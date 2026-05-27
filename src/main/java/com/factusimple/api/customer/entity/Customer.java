@@ -20,11 +20,13 @@ import java.math.BigDecimal;
                 columnNames = {"establishment_id", "identification"}
         )
 )
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Customer extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

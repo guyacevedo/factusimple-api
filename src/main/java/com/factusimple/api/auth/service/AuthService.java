@@ -105,7 +105,12 @@ public class AuthService {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos"));
 
+        if (isUserLockedOut(user)) {
+            throw new UnauthorizedException("Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente más tarde.");
+        }
+
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            incrementFailedLoginAttempts(user);
             throw new UnauthorizedException("Email o contraseña incorrectos");
         }
 
@@ -113,9 +118,32 @@ public class AuthService {
             throw new UnauthorizedException("Usuario deshabilitado");
         }
 
+        resetFailedLoginAttempts(user);
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
         return user;
+    }
+
+    private boolean isUserLockedOut(User user) {
+        if (user.getFailedLoginAttempts() < 10) {
+            return false;
+        }
+        if (user.getLastFailedLoginAt() == null) {
+            return false;
+        }
+        LocalDateTime fifteenMinutesAgo = LocalDateTime.now().minusMinutes(15);
+        return user.getLastFailedLoginAt().isAfter(fifteenMinutesAgo);
+    }
+
+    private void incrementFailedLoginAttempts(User user) {
+        user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+        user.setLastFailedLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    private void resetFailedLoginAttempts(User user) {
+        user.setFailedLoginAttempts(0);
+        user.setLastFailedLoginAt(null);
     }
 
     /**

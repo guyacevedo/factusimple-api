@@ -29,7 +29,7 @@ public class EstablishmentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         Page<EstablishmentResponseDto> establishmentPage = establishmentService.listEstablishments(pageable);
         return ResponseEntity.ok(ApiResponseDto.success("Establishments retrieved successfully", PageResponseDto.from(establishmentPage)));
     }

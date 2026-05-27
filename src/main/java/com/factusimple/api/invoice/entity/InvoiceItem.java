@@ -16,11 +16,13 @@ import java.util.List;
         @Index(name = "idx_invoice_item_invoice_id", columnList = "invoice_id"),
         @Index(name = "idx_invoice_item_product_id", columnList = "product_id")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true, exclude = {"invoice", "taxes"})
 public class InvoiceItem extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

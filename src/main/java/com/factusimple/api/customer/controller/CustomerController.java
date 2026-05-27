@@ -39,7 +39,7 @@ public class CustomerController {
             @AuthenticationPrincipal CustomUserDetails principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         Page<CustomerResponseDto> customersPage = customerService.list(principal.getUserId(), pageable);
         return ResponseEntity.ok(ApiResponseDto.success("Clientes obtenidos", PageResponseDto.from(customersPage)));
     }

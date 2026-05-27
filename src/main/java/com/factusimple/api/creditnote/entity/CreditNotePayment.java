@@ -11,11 +11,13 @@ import java.time.LocalDate;
 @Table(name = "credit_note_payments", indexes = {
     @Index(name = "idx_credit_note_payment_credit_note", columnList = "credit_note_id")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class CreditNotePayment extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

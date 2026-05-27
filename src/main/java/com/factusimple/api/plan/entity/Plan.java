@@ -15,11 +15,13 @@ import lombok.*;
         @Index(name = "idx_plan_name", columnList = "name"),
         @Index(name = "idx_plan_is_active", columnList = "is_active")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Plan extends BaseEntity {
 
     @NotBlank(message = "Plan name is required")

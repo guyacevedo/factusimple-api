@@ -12,11 +12,13 @@ import java.time.LocalDate;
 @Table(name = "invoice_prepayments", indexes = {
         @Index(name = "idx_invoice_prepayment_invoice_id", columnList = "invoice_id")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true, exclude = "invoice")
 public class InvoicePrepayment extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

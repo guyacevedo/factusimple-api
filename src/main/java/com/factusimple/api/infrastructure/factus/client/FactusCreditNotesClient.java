@@ -47,18 +47,12 @@ public class FactusCreditNotesClient {
 
     @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableByteArrayFallback")
     public byte[] downloadPdf(User user, String number) {
-        return executor.executeWithRetry(user, () -> {
-            byte[] pdf = executor.getJson(user, "/v2/credit-notes/{number}/download-pdf", byte[].class, number);
-            return pdf != null ? pdf : new byte[0];
-        });
+        return executor.executeWithRetry(user, () -> executor.downloadAsset(user, "/v2/credit-notes/" + number + "/download-pdf", "pdf_base_64_encoded"));
     }
 
     @CircuitBreaker(name = "factus", fallbackMethod = "factusUnavailableByteArrayFallback")
     public byte[] downloadXml(User user, String number) {
-        return executor.executeWithRetry(user, () -> {
-            byte[] xml = executor.getJson(user, "/v2/credit-notes/{number}/download-xml", byte[].class, number);
-            return xml != null ? xml : new byte[0];
-        });
+        return executor.executeWithRetry(user, () -> executor.downloadAsset(user, "/v2/credit-notes/" + number + "/download-xml", "xml_base_64_encoded"));
     }
 
     private Map<String, Object> factusUnavailableMapFallback(Exception ex) {

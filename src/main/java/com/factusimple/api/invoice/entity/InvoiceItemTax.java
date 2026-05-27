@@ -12,11 +12,13 @@ import java.math.BigDecimal;
 @Table(name = "invoice_item_taxes", indexes = {
         @Index(name = "idx_invoice_item_tax_item_id", columnList = "invoice_item_id")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true, exclude = "item")
 public class InvoiceItemTax extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

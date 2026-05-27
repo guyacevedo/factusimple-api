@@ -78,6 +78,25 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponseDto<?>> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex) {
+        log.warn("Cuerpo de solicitud inválido: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponseDto.error("El cuerpo de la solicitud tiene formato inválido", "BAD_REQUEST_BODY"));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponseDto<?>> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex) {
+        log.warn("Conflicto de integridad de datos: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponseDto.error("Conflicto de datos: el recurso ya existe o hay una violación de restricción", "DATA_CONFLICT"));
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponseDto<?>> handleConstraintViolation(
             ConstraintViolationException ex) {
@@ -96,15 +115,6 @@ public class GlobalExceptionHandler {
                         "CONSTRAINT_VIOLATION",
                         errors
                 ));
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiResponseDto<?>> handleHttpMessageNotReadable(
-            HttpMessageNotReadableException ex) {
-        log.warn("Cuerpo de la solicitud inválido: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponseDto.error("Cuerpo de la solicitud inválido: " + ex.getMostSpecificCause().getMessage(), "INVALID_REQUEST_BODY"));
     }
 
     @ExceptionHandler(ApiException.class)

@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
@@ -19,11 +20,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
-    @Value("${app.jwt.secret:changeme-with-a-long-random-secret-key-32-chars-minimum}")
+    @Value("${app.jwt.secret}")
     private String jwtSecret;
 
     @Value("${app.jwt.expiration-hours:24}")
     private long expirationHours;
+
+    @PostConstruct
+    public void validateConfiguration() {
+        if (jwtSecret == null || jwtSecret.trim().isEmpty()) {
+            throw new IllegalStateException("JWT secret no configurado. Establezca la variable app.jwt.secret en properties o env variable JWT_SECRET");
+        }
+        if (jwtSecret.length() < 32) {
+            throw new IllegalStateException("JWT secret debe tener mínimo 32 caracteres. Actual: " + jwtSecret.length());
+        }
+        log.info("JWT configuration validated. Secret length: {}", jwtSecret.length());
+    }
 
     public String generateAccessToken(UUID userId, String email) {
         Date expiresAt = new Date(System.currentTimeMillis() + (expirationHours * 60 * 60 * 1000));

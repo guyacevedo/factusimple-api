@@ -3,6 +3,8 @@ package com.factusimple.api.config;
 import com.factusimple.api.auth.repository.TokenRepository;
 import com.factusimple.api.infrastructure.filter.TokenService;
 import com.factusimple.api.infrastructure.filter.JwtAuthenticationFilter;
+import com.factusimple.api.shared.dto.ApiResponseDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -36,6 +38,8 @@ public class SecurityConfig {
             "/v1/factus-codes/**",
             "/auth/register",
             "/auth/login",
+            "/auth/refresh",
+            "/auth/logout",
     };
 
     @Bean
@@ -46,7 +50,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, TokenService tokenService,
                                            UserDetailsService userDetailsService,
-                                           TokenRepository refreshTokenRepository) {
+                                           TokenRepository refreshTokenRepository,
+                                           ObjectMapper objectMapper) {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(
                 tokenService, userDetailsService, refreshTokenRepository
         );
@@ -64,12 +69,18 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);
                             response.setContentType("application/json");
-                            response.getWriter().write("{\"error\": \"No autorizado\"}");
+                            String json = objectMapper.writeValueAsString(
+                                    ApiResponseDto.error("Token inválido o expirado", "UNAUTHORIZED")
+                            );
+                            response.getWriter().write(json);
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(403);
                             response.setContentType("application/json");
-                            response.getWriter().write("{\"error\": \"Acceso denegado\"}");
+                            String json = objectMapper.writeValueAsString(
+                                    ApiResponseDto.error("Acceso denegado", "FORBIDDEN")
+                            );
+                            response.getWriter().write(json);
                         })
                 );
 
@@ -80,7 +91,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of("*"));
+        String allowedOriginsEnv = System.getenv("ALLOWED_ORIGINS");
+        List<String> allowedOrigins = allowedOriginsEnv != null && !allowedOriginsEnv.isEmpty()
+                ? Arrays.asList(allowedOriginsEnv.split(","))
+                : List.of("http://localhost:3000", "http://localhost:8080");
+
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));

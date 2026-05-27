@@ -1,23 +1,23 @@
 package com.factusimple.api.shared.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record ApiResponseDto<T>(
     boolean success,
     String message,
     String errorCode,
     T data,
-    LocalDateTime timestamp
+    Instant timestamp
 ) {
     public static <T> ApiResponseDto<T> success(String message, T data) {
-        return new ApiResponseDto<>(true, message, null, data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, message, null, data, Instant.now());
     }
 
     public static <T> ApiResponseDto<T> error(String message, String errorCode) {
-        return new ApiResponseDto<>(false, message, errorCode, null, LocalDateTime.now());
+        return new ApiResponseDto<>(false, message, errorCode, null, Instant.now());
     }
 
     public static <T> ApiResponseDto<T> error(String message, String errorCode, T data) {
-        return new ApiResponseDto<>(false, message, errorCode, data, LocalDateTime.now());
+        return new ApiResponseDto<>(false, message, errorCode, data, Instant.now());
     }
 }

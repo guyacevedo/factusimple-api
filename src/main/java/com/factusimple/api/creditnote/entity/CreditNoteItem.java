@@ -13,11 +13,13 @@ import java.util.List;
 @Table(name = "credit_note_items", indexes = {
     @Index(name = "idx_credit_note_item_credit_note", columnList = "credit_note_id")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class CreditNoteItem extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

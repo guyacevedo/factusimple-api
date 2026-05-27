@@ -1,5 +1,4 @@
--- Default ADMIN user
--- Email: admin@factusimple.com  |  Password: Admin1234!  (BCrypt strength 12)
+-- Default ADMIN user (password must be changed on first login)
 INSERT INTO users (
     id, email, password,
     first_name, last_name,
@@ -16,7 +15,7 @@ VALUES (
     'ADMIN',
     '550e8400-e29b-41d4-a716-446655440000'::uuid,
     0, 0, 0,
-    TRUE, NULL,
+    FALSE, NULL,
     NOW(), NOW(), NULL, NULL
 )
 ON CONFLICT (email) DO NOTHING;

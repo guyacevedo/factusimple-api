@@ -14,12 +14,16 @@ import java.util.List;
     @Index(name = "idx_credit_note_invoice", columnList = "invoice_id"),
     @Index(name = "idx_credit_note_establishment", columnList = "establishment_id"),
     @Index(name = "idx_credit_note_status", columnList = "status")
+}, uniqueConstraints = {
+    @UniqueConstraint(name = "uk_credit_note_establishment_reference_code", columnNames = {"establishment_id", "reference_code"})
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class CreditNote extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -30,7 +34,7 @@ public class CreditNote extends BaseEntity {
     @JoinColumn(name = "invoice_id")
     private Invoice invoice;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String referenceCode;
 
     @Column(nullable = false)

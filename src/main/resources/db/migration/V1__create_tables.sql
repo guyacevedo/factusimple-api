@@ -1,10 +1,13 @@
 -- PostgreSQL 13+ has gen_random_uuid() built-in, no extension needed
+-- CONSOLIDATED SCHEMA: Includes all changes from V4-V9
+-- Optimized for production baseline with all required columns and indexes
 
 -- ============================================================================
 -- PLANS TABLE
 -- ============================================================================
 CREATE TABLE plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     name VARCHAR(100) NOT NULL UNIQUE,
     max_products INTEGER NOT NULL CHECK (max_products >= 1),
     max_customers INTEGER NOT NULL CHECK (max_customers >= 1),
@@ -26,6 +29,7 @@ CREATE INDEX idx_plan_is_active ON plans(is_active);
 -- ============================================================================
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
@@ -38,6 +42,8 @@ CREATE TABLE users (
     invoice_count INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     last_login TIMESTAMP,
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    last_failed_login_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     created_by UUID,
@@ -52,6 +58,7 @@ CREATE INDEX idx_user_is_active ON users(is_active);
 -- ============================================================================
 CREATE TABLE tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
     token_type VARCHAR(20) NOT NULL CHECK (token_type IN ('ACCESS', 'REFRESH', 'FACTUS_ACCESS', 'FACTUS_REFRESH')),
@@ -65,12 +72,14 @@ CREATE TABLE tokens (
 );
 CREATE INDEX idx_token_user_id ON tokens(user_id);
 CREATE INDEX idx_token_expires_at ON tokens(expires_at);
+CREATE INDEX idx_tokens_user_revoked ON tokens(user_id, revoked, expires_at);
 
 -- ============================================================================
 -- ESTABLISHMENTS TABLE
 -- ============================================================================
 CREATE TABLE establishments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
     name VARCHAR(255) NOT NULL,
     address VARCHAR(255),
@@ -96,6 +105,7 @@ CREATE INDEX idx_establishment_nit ON establishments(nit);
 -- ============================================================================
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     establishment_id UUID NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
     sku VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -114,12 +124,14 @@ CREATE TABLE products (
 );
 CREATE INDEX idx_product_establishment_id ON products(establishment_id);
 CREATE INDEX idx_product_sku ON products(sku);
+CREATE INDEX idx_products_establishment_active ON products(establishment_id, is_active);
 
 -- ============================================================================
 -- CUSTOMERS TABLE
 -- ============================================================================
 CREATE TABLE customers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     establishment_id UUID NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
     id_type_code VARCHAR(4) NOT NULL,
     identification VARCHAR(30) NOT NULL,
@@ -144,12 +156,14 @@ CREATE TABLE customers (
 );
 CREATE INDEX idx_customer_establishment_id ON customers(establishment_id);
 CREATE INDEX idx_customer_identification ON customers(identification);
+CREATE INDEX idx_customers_establishment_active ON customers(establishment_id, is_active);
 
 -- ============================================================================
 -- INVOICES TABLE
 -- ============================================================================
 CREATE TABLE invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     establishment_id UUID NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
     reference_code VARCHAR(100) NOT NULL,
@@ -163,7 +177,7 @@ CREATE TABLE invoices (
     total_taxes NUMERIC(16, 2) NOT NULL DEFAULT 0.00,
     total_discounts NUMERIC(16, 2) NOT NULL DEFAULT 0.00,
     total NUMERIC(16, 2) NOT NULL DEFAULT 0.00,
-    cufe VARCHAR(100),
+    cufe VARCHAR(200),
     xml_url TEXT,
     factus_number VARCHAR(50),
     factus_error TEXT,
@@ -186,6 +200,7 @@ CREATE INDEX idx_invoice_est_created ON invoices(establishment_id, created_at);
 -- ============================================================================
 CREATE TABLE invoice_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
     product_id UUID REFERENCES products(id) ON DELETE SET NULL,
     code_reference VARCHAR(50),
@@ -209,6 +224,7 @@ CREATE INDEX idx_invoice_item_product_id ON invoice_items(product_id);
 -- ============================================================================
 CREATE TABLE invoice_item_taxes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     invoice_item_id UUID NOT NULL REFERENCES invoice_items(id) ON DELETE CASCADE,
     tax_code VARCHAR(4) NOT NULL,
     tax_rate NUMERIC(5, 2) NOT NULL,
@@ -225,6 +241,7 @@ CREATE INDEX idx_invoice_item_tax_item_id ON invoice_item_taxes(invoice_item_id)
 -- ============================================================================
 CREATE TABLE invoice_payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
     payment_form VARCHAR(1) NOT NULL,
     payment_method_code VARCHAR(4) NOT NULL,
@@ -243,6 +260,7 @@ CREATE INDEX idx_invoice_payment_invoice_id ON invoice_payments(invoice_id);
 -- ============================================================================
 CREATE TABLE invoice_prepayments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
     reference_code VARCHAR(50),
     received_date DATE NOT NULL,
@@ -260,6 +278,7 @@ CREATE INDEX idx_invoice_prepayment_invoice_id ON invoice_prepayments(invoice_id
 -- ============================================================================
 CREATE TABLE allowance_charges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
     concept_type VARCHAR(4) NOT NULL,
     is_surcharge BOOLEAN NOT NULL,
@@ -278,6 +297,7 @@ CREATE INDEX idx_allowance_charge_invoice_id ON allowance_charges(invoice_id);
 -- ============================================================================
 CREATE TABLE credit_notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     establishment_id UUID NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
     invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
     reference_code VARCHAR(100) NOT NULL,
@@ -293,7 +313,7 @@ CREATE TABLE credit_notes (
     updated_at TIMESTAMP NOT NULL,
     created_by UUID,
     updated_by UUID,
-    UNIQUE (establishment_id, reference_code)
+    CONSTRAINT uk_credit_note_establishment_reference_code UNIQUE (establishment_id, reference_code)
 );
 CREATE INDEX idx_credit_note_invoice ON credit_notes(invoice_id);
 CREATE INDEX idx_credit_note_establishment ON credit_notes(establishment_id);
@@ -304,6 +324,7 @@ CREATE INDEX idx_credit_note_status ON credit_notes(status);
 -- ============================================================================
 CREATE TABLE credit_note_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     credit_note_id UUID NOT NULL REFERENCES credit_notes(id) ON DELETE CASCADE,
     product_id UUID REFERENCES products(id) ON DELETE SET NULL,
     code_reference VARCHAR(50),
@@ -326,6 +347,7 @@ CREATE INDEX idx_credit_note_item_credit_note ON credit_note_items(credit_note_i
 -- ============================================================================
 CREATE TABLE credit_note_item_taxes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     item_id UUID NOT NULL REFERENCES credit_note_items(id) ON DELETE CASCADE,
     tax_code VARCHAR(4) NOT NULL,
     tax_rate NUMERIC(5, 2) NOT NULL,
@@ -342,6 +364,7 @@ CREATE INDEX idx_credit_note_item_tax_item ON credit_note_item_taxes(item_id);
 -- ============================================================================
 CREATE TABLE credit_note_payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     credit_note_id UUID NOT NULL REFERENCES credit_notes(id) ON DELETE CASCADE,
     payment_form VARCHAR(1) NOT NULL,
     payment_method_code VARCHAR(4) NOT NULL,
@@ -360,6 +383,7 @@ CREATE INDEX idx_credit_note_payment_credit_note ON credit_note_payments(credit_
 -- ============================================================================
 CREATE TABLE credit_note_allowance_charges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    version BIGINT DEFAULT 0,
     credit_note_id UUID NOT NULL REFERENCES credit_notes(id) ON DELETE CASCADE,
     concept_type VARCHAR(4) NOT NULL,
     is_surcharge BOOLEAN NOT NULL DEFAULT FALSE,
@@ -372,4 +396,3 @@ CREATE TABLE credit_note_allowance_charges (
     updated_by UUID
 );
 CREATE INDEX idx_credit_note_allowance_charge_credit_note ON credit_note_allowance_charges(credit_note_id);
-

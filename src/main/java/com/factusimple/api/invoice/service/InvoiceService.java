@@ -83,7 +83,6 @@ public class InvoiceService {
         return invoiceMapper.toDto(saved);
     }
 
-    @Transactional
     private Invoice createInvoiceLocal(UUID userId, InvoiceRequestDto requestDto) {
         Establishment establishment = establishmentService.getEntityByUserId(userId);
 
@@ -128,13 +127,13 @@ public class InvoiceService {
      * Reintenta el envío a Factus para una factura PENDING o ERROR.
      * No incrementa invoiceCount (eso ocurre solo en create()).
      */
+    @Transactional
     public InvoiceResponseDto syncWithFactus(UUID userId, UUID invoiceId) {
         Invoice invoice = getAndValidateForSync(userId, invoiceId);
         syncToFactusSafely(invoice.getEstablishment().getUser(), invoice);
         return invoiceMapper.toDto(invoice);
     }
 
-    @Transactional
     private Invoice getAndValidateForSync(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
         if (invoice.getStatus() == InvoiceStatus.VALIDATED) {
@@ -146,6 +145,7 @@ public class InvoiceService {
         return invoice;
     }
 
+    @Transactional
     public InvoiceResponseDto cancel(UUID userId, UUID invoiceId) {
         Invoice invoice = getAndValidateForCancel(userId, invoiceId);
 
@@ -166,7 +166,6 @@ public class InvoiceService {
         return invoiceMapper.toDto(invoice);
     }
 
-    @Transactional
     private Invoice getAndValidateForCancel(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
 
@@ -182,7 +181,6 @@ public class InvoiceService {
         return invoice;
     }
 
-    @Transactional
     private void markAsCancelledInTransaction(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
         invoice.setStatus(InvoiceStatus.CANCELLED);
@@ -243,7 +241,6 @@ public class InvoiceService {
         }
     }
 
-    @Transactional
     private void saveInvoiceInTransaction(Invoice invoice) {
         invoiceRepository.save(invoice);
     }
@@ -299,6 +296,7 @@ public class InvoiceService {
         return page.map(invoiceMapper::toDto);
     }
 
+    @Transactional
     public void delete(UUID userId, UUID invoiceId) {
         Invoice invoice = getAndValidateForDelete(userId, invoiceId);
 
@@ -315,7 +313,6 @@ public class InvoiceService {
         log.info("Factura eliminada: id={}", invoiceId);
     }
 
-    @Transactional
     private Invoice getAndValidateForDelete(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
         if (invoice.getStatus() == InvoiceStatus.VALIDATED) {
@@ -329,7 +326,6 @@ public class InvoiceService {
         return invoice;
     }
 
-    @Transactional
     private void deleteInvoiceInTransaction(UUID userId, UUID invoiceId) {
         Invoice invoice = requireOwned(userId, invoiceId);
         invoiceRepository.delete(invoice);

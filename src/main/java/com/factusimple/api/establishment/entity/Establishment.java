@@ -11,11 +11,13 @@ import lombok.*;
         @Index(name = "idx_establishment_user_id", columnList = "user_id"),
         @Index(name = "idx_establishment_nit", columnList = "nit")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Establishment extends BaseEntity {
 
     @NotBlank(message = "La razón social es requerida")

@@ -13,11 +13,13 @@ import java.time.LocalDateTime;
         @Index(name = "idx_token_user_id", columnList = "user_id"),
         @Index(name = "idx_token_expires_at", columnList = "expires_at")
 })
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Token extends BaseEntity {
 
     public enum TokenType {

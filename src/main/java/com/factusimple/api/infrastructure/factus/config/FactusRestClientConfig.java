@@ -24,11 +24,12 @@ public class FactusRestClientConfig {
                 .version(HttpClient.Version.HTTP_2)
                 .build();
 
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(Duration.ofSeconds(30));
+
         return builder
                 .baseUrl(factusProperties.url())
-                .requestFactory(
-                        new JdkClientHttpRequestFactory(httpClient)
-                )
+                .requestFactory(factory)
                 .defaultHeader(
                         HttpHeaders.ACCEPT,
                         "application/json"

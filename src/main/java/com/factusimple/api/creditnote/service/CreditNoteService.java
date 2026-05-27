@@ -63,7 +63,7 @@ public class CreditNoteService {
             }
         }
 
-        if (creditNoteRepository.existsByReferenceCode(dto.referenceCode())) {
+        if (creditNoteRepository.existsByReferenceCodeAndEstablishmentId(dto.referenceCode(), establishment.getId())) {
             throw new ConflictException("Ya existe una nota de crédito con referenceCode: " + dto.referenceCode());
         }
 
@@ -77,15 +77,17 @@ public class CreditNoteService {
         creditNote.setCustomizationId(dto.customizationId() != null ? dto.customizationId() : "20");
 
         creditNote.setItems(creditNoteMapper.itemsToEntityList(dto.items()));
-        for (var item : creditNote.getItems()) {
+        var savedItems = creditNote.getItems();
+        var dtoItems = dto.items();
+        for (int i = 0; i < savedItems.size(); i++) {
+            var item = savedItems.get(i);
             item.setCreditNote(creditNote);
             if (item.getProduct() != null) {
                 var product = productRepository.findById(item.getProduct().getId())
                         .orElseThrow(() -> new ResourceNotFoundException("Product", "id", item.getProduct().getId().toString()));
                 item.setProduct(product);
             }
-            item.setTaxes(creditNoteMapper.itemTaxesToEntityList(dto.items().stream()
-                    .filter(i -> i.name().equals(item.getName())).findFirst().get().taxes()));
+            item.setTaxes(creditNoteMapper.itemTaxesToEntityList(dtoItems.get(i).taxes()));
             for (var tax : item.getTaxes()) {
                 tax.setItem(item);
             }

@@ -7,12 +7,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
-import java.io.IOException;
 import java.util.Base64;
 import java.util.function.Supplier;
 
@@ -69,16 +67,16 @@ public class FactusHttpExecutor {
             Object... uriVariables
     ) {
 
-        return restClient
-                .get()
-                .uri(uri, uriVariables)
-                .headers(headers -> headers.setBearerAuth(tokenService.getToken(user)))
-                .retrieve()
-                .onStatus(
-                        status -> status.isError(),
-                        this::handleError
-                )
-                .body(responseType);
+        try {
+            return restClient
+                    .get()
+                    .uri(uri, uriVariables)
+                    .headers(headers -> headers.setBearerAuth(tokenService.getToken(user)))
+                    .retrieve()
+                    .body(responseType);
+        } catch (Exception ex) {
+            throw handleHttpError(ex);
+        }
     }
 
     public <T> T getJson(
@@ -87,17 +85,16 @@ public class FactusHttpExecutor {
             ParameterizedTypeReference<T> responseType,
             Object... uriVariables
     ) {
-
-        return restClient
-                .get()
-                .uri(uri, uriVariables)
-                .headers(headers -> headers.setBearerAuth(tokenService.getToken(user)))
-                .retrieve()
-                .onStatus(
-                        status -> status.isError(),
-                        this::handleError
-                )
-                .body(responseType);
+        try {
+            return restClient
+                    .get()
+                    .uri(uri, uriVariables)
+                    .headers(headers -> headers.setBearerAuth(tokenService.getToken(user)))
+                    .retrieve()
+                    .body(responseType);
+        } catch (Exception ex) {
+            throw handleHttpError(ex);
+        }
     }
 
     public <T> T postJson(
@@ -107,20 +104,20 @@ public class FactusHttpExecutor {
             Class<T> responseType
     ) {
 
-        return restClient
-                .post()
-                .uri(uri)
-                .headers(headers -> {
-                    headers.setBearerAuth(tokenService.getToken(user));
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                })
-                .body(body)
-                .retrieve()
-                .onStatus(
-                        status -> status.isError(),
-                        this::handleError
-                )
-                .body(responseType);
+        try {
+            return restClient
+                    .post()
+                    .uri(uri)
+                    .headers(headers -> {
+                        headers.setBearerAuth(tokenService.getToken(user));
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+                    })
+                    .body(body)
+                    .retrieve()
+                    .body(responseType);
+        } catch (Exception ex) {
+            throw handleHttpError(ex);
+        }
     }
 
     public void deleteJson(
@@ -129,16 +126,16 @@ public class FactusHttpExecutor {
             Object... uriVariables
     ) {
 
-        restClient
-                .delete()
-                .uri(uri, uriVariables)
-                .headers(headers -> headers.setBearerAuth(tokenService.getToken(user)))
-                .retrieve()
-                .onStatus(
-                        status -> status.isError(),
-                        this::handleError
-                )
-                .toBodilessEntity();
+        try {
+            restClient
+                    .delete()
+                    .uri(uri, uriVariables)
+                    .headers(headers -> headers.setBearerAuth(tokenService.getToken(user)))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception ex) {
+            throw handleHttpError(ex);
+        }
     }
 
     public byte[] downloadAsset(
@@ -161,23 +158,15 @@ public class FactusHttpExecutor {
         return Base64.getDecoder().decode(response.data().value());
     }
 
-    private void handleError(
-            org.springframework.http.HttpRequest request,
-            ClientHttpResponse response
-    ) throws IOException {
+    private RuntimeException handleHttpError(Exception ex) {
+        if (ex instanceof ApiException apiEx) {
+            return apiEx;
+        }
 
-        int status = response.getStatusCode().value();
-        String body = new String(response.getBody().readAllBytes());
-
-        log.error(
-                "Error Factus status={} body={}",
-                status,
-                body
-        );
-
-        throw new ApiException(
-                status,
-                "Error Factus: " + body
+        log.error("Error al llamar Factus", ex);
+        return new ApiException(
+                502,
+                "Error al conectar con Factus: " + ex.getMessage()
         );
     }
 
