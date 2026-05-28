@@ -40,6 +40,10 @@ public class SecurityConfig {
             "/auth/login",
             "/auth/refresh",
             "/auth/logout",
+            "/auth/activate",
+            "/auth/forgot-password",
+            "/auth/reset-password",
+            "/v1/plans"
     };
 
     @Bean

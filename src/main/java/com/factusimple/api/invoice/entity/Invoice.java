@@ -67,6 +67,10 @@ public class Invoice extends BaseEntity {
     private BigDecimal cashRounding;
 
     @NotNull
+    @Column(name = "numbering_range_id", nullable = false)
+    private Integer numberingRangeId;
+
+    @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private InvoiceStatus status;

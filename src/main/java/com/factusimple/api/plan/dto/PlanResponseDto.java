@@ -12,7 +12,6 @@ public record PlanResponseDto(
     Boolean isActive,
     String description,
     Boolean requiredInvitedCode,
-    String code,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {}

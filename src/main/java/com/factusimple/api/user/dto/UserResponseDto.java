@@ -9,6 +9,7 @@ public record UserResponseDto(
     String lastName,
     String phone,
     String role,
+    String planId,
     String planName,
     Integer maxProducts,
     Integer productCount,

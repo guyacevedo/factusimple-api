@@ -45,7 +45,6 @@ public class PlanController {
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponseDto<PageResponseDto<PlanResponseDto>>> listPlans(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {

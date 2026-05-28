@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
+import java.util.UUID;
+
 public record RegisterRequestDto(
     @NotBlank(message = "El email es requerido")
     @Email(message = "El email debe ser válido")
@@ -25,6 +27,11 @@ public record RegisterRequestDto(
 
     @Pattern(regexp = "^[+]?[0-9]{7,20}$", message = "Teléfono inválido")
     String phone,
+
+    @NotNull(message = "El planId es requerido")
+    UUID planId,
+
+    String inviteCode,
 
     @NotNull(message = "La información del establecimiento es requerida")
     @Valid

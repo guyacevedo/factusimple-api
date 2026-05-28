@@ -6,7 +6,6 @@ import com.factusimple.api.establishment.entity.Establishment;
 import com.factusimple.api.establishment.mapper.EstablishmentMapper;
 import com.factusimple.api.establishment.repository.EstablishmentRepository;
 import com.factusimple.api.infrastructure.exception.*;
-import com.factusimple.api.infrastructure.factus.codes.NumberingRangeIdCode;
 import com.factusimple.api.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +39,6 @@ public class EstablishmentService {
 
         Establishment establishment = establishmentMapper.toEntity(requestDto);
         establishment.setUser(user);
-        establishment.setNumberingRangeId(Integer.parseInt(NumberingRangeIdCode.FASI.getCode()));
         Establishment saved = establishmentRepository.save(establishment);
         log.info("Establishment creado: id={}, nit={}, userId={}",
                 saved.getId(), saved.getNit(), user.getId());

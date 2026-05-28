@@ -52,9 +52,6 @@ public class Establishment extends BaseEntity {
     @Column(name = "fiscal_responsibility", length = 50)
     private String fiscalResponsibility;
 
-    @Column(name = "numbering_range_id")
-    private Integer numberingRangeId;
-
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;

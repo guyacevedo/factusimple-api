@@ -149,7 +149,7 @@ public class FactusBillsClient {
                 : null;
 
         return new FactusBillPayloadDto(
-                establishment.getNumberingRangeId() != null ? establishment.getNumberingRangeId().toString() : null,
+                invoice.getNumberingRangeId() != null ? invoice.getNumberingRangeId().toString() : null,
                 invoice.getReferenceCode(),
                 invoice.getDocumentType(),
                 invoice.getOperationType(),

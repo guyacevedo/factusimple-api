@@ -80,4 +80,10 @@ public class User extends BaseEntity {
     @Column(name = "last_failed_login_at")
     private LocalDateTime lastFailedLoginAt;
 
+    @Column(name = "reset_token", length = 255)
+    private String resetToken;
+
+    @Column(name = "reset_token_expires_at")
+    private LocalDateTime resetTokenExpiresAt;
+
 }

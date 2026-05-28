@@ -25,6 +25,9 @@ public record InvoiceRequestDto(
 
     BigDecimal cashRounding,
 
+    @NotNull(message = "El numberingRangeId es requerido")
+    Integer numberingRangeId,
+
     @NotNull
     UUID customerId,
 

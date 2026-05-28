@@ -4,6 +4,7 @@ import com.factusimple.api.auth.dto.*;
 import com.factusimple.api.auth.entity.Token;
 import com.factusimple.api.auth.repository.TokenRepository;
 import com.factusimple.api.establishment.service.EstablishmentService;
+import com.factusimple.api.infrastructure.exception.BadRequestException;
 import com.factusimple.api.infrastructure.exception.ResourceNotFoundException;
 import com.factusimple.api.infrastructure.exception.UnauthorizedException;
 import com.factusimple.api.infrastructure.factus.client.FactusAuthClient;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -63,8 +65,17 @@ public class AuthService {
             throw new IllegalArgumentException("El email ya está registrado");
         }
 
-        Plan defaultPlan = planRepository.findByName("FREE")
-                .orElseThrow(() -> new ResourceNotFoundException("Plan", "name", "FREE"));
+        Plan selectedPlan = planRepository.findById(request.planId())
+                .orElseThrow(() -> new ResourceNotFoundException("Plan", "id", request.planId()));
+
+        if (Boolean.TRUE.equals(selectedPlan.getRequiredInvitedCode())) {
+            if (request.inviteCode() == null || request.inviteCode().isBlank()) {
+                throw new BadRequestException("Este plan requiere un código de invitación");
+            }
+            if (!request.inviteCode().equals(selectedPlan.getCode())) {
+                throw new BadRequestException("El código de invitación es incorrecto");
+            }
+        }
 
         User user = User.builder()
                 .email(request.email())
@@ -73,7 +84,7 @@ public class AuthService {
                 .lastName(request.lastName())
                 .phone(request.phone())
                 .role(Role.ESTABLISHMENT)
-                .plan(defaultPlan)
+                .plan(selectedPlan)
                 .invoiceCount(0)
                 .productsCount(0)
                 .customersCount(0)
@@ -285,5 +296,72 @@ public class AuthService {
             expiresIn,
             userMapper.toDto(user)
         );
+    }
+
+    @Transactional
+    public void activateAccount(ActivateAccountRequestDto request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.email()));
+
+        if (Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BadRequestException("Cuenta ya activa");
+        }
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Contraseña actual incorrecta");
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new BadRequestException("La nueva contraseña no puede ser igual a la actual");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setIsActive(true);
+        userRepository.save(user);
+        log.info("Cuenta activada para usuario: {}", user.getEmail());
+    }
+
+    @Transactional
+    public String forgotPassword(ForgotPasswordRequestDto request) {
+        User user = userRepository.findByEmail(request.email()).orElse(null);
+
+        if (user == null) {
+            return UUID.randomUUID().toString();
+        }
+
+        String resetToken = UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+
+        user.setResetToken(resetToken);
+        user.setResetTokenExpiresAt(expiresAt);
+        userRepository.save(user);
+
+        log.info("Token de reset generado para usuario: {}", user.getEmail());
+        return resetToken;
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequestDto request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.email()));
+
+        if (user.getResetToken() == null || !user.getResetToken().equals(request.resetToken())) {
+            throw new BadRequestException("Token de reset inválido");
+        }
+
+        if (user.getResetTokenExpiresAt() == null || user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Token de reset expirado");
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new BadRequestException("La nueva contraseña no puede ser igual a la actual");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpiresAt(null);
+        userRepository.save(user);
+
+        log.info("Contraseña resetteada para usuario: {}", user.getEmail());
     }
 }

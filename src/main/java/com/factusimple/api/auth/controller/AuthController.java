@@ -1,9 +1,12 @@
 package com.factusimple.api.auth.controller;
 
+import com.factusimple.api.auth.dto.ActivateAccountRequestDto;
+import com.factusimple.api.auth.dto.ForgotPasswordRequestDto;
 import com.factusimple.api.auth.dto.LoginRequestDto;
 import com.factusimple.api.auth.dto.LoginResponseDto;
-import com.factusimple.api.auth.dto.RegisterRequestDto;
 import com.factusimple.api.auth.dto.RefreshTokenRequestDto;
+import com.factusimple.api.auth.dto.RegisterRequestDto;
+import com.factusimple.api.auth.dto.ResetPasswordRequestDto;
 import com.factusimple.api.auth.service.AuthService;
 import com.factusimple.api.shared.dto.ApiResponseDto;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,5 +56,26 @@ public class AuthController {
             authService.logout(refreshToken);
         }
         return ResponseEntity.ok(ApiResponseDto.success("Logout exitoso", null));
+    }
+
+    @PostMapping("/activate")
+    public ResponseEntity<ApiResponseDto<Void>> activateAccount(
+            @Valid @RequestBody ActivateAccountRequestDto request) {
+        authService.activateAccount(request);
+        return ResponseEntity.ok(ApiResponseDto.success("Cuenta activada exitosamente", null));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponseDto<String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequestDto request) {
+        String resetToken = authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponseDto.success("Token de reset generado", resetToken));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponseDto<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequestDto request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponseDto.success("Contraseña actualizada exitosamente", null));
     }
 }
