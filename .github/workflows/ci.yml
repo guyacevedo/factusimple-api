@@ -2,16 +2,28 @@ name: CI - Build & Test
 
 on:
   push:
-    branches:
-      - develop
+    branches: [ develop, main, 'feature/**' ]
   pull_request:
-    branches:
-      - develop
-      - main
+    branches: [ develop, main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ${{ secrets.DB_DATABASE_NAME }}
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
@@ -25,4 +37,17 @@ jobs:
           cache: maven
 
       - name: Build & Test
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE_NAME: ${{ secrets.DB_DATABASE_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          FACTUS_ENDPOINT_SANDBOX: ${{ secrets.FACTUS_ENDPOINT_SANDBOX }}
+          FACTUS_USER: ${{ secrets.FACTUS_USER }}
+          FACTUS_PASSWORD: ${{ secrets.FACTUS_PASSWORD }}
+          FACTUS_CLIENT_ID: ${{ secrets.FACTUS_CLIENT_ID }}
+          FACTUS_CLIENT_SECRET: ${{ secrets.FACTUS_CLIENT_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: mvn -B clean verify

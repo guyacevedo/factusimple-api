@@ -1,0 +1,84 @@
+{
+  "unitMeasures": [
+    {
+      "code": "94",
+      "name": "unidad"
+    },
+    {
+      "code": "DZN",
+      "name": "docena"
+    },
+    {
+      "code": "KGM",
+      "name": "kilogramo"
+    },
+    {
+      "code": "LTR",
+      "name": "litro"
+    },
+    {
+      "code": "GRM",
+      "name": "gramo"
+    },
+    {
+      "code": "MLT",
+      "name": "mililitro"
+    },
+    {
+      "code": "MTR",
+      "name": "metro"
+    },
+    {
+      "code": "MTK",
+      "name": "metro cuadrado"
+    },
+    {
+      "code": "MTQ",
+      "name": "metro cúbico"
+    },
+    {
+      "code": "CMT",
+      "name": "centímetro"
+    },
+    {
+      "code": "GLL",
+      "name": "galón"
+    },
+    {
+      "code": "LBR",
+      "name": "libra"
+    },
+    {
+      "code": "ONZ",
+      "name": "onza"
+    },
+    {
+      "code": "TNE",
+      "name": "tonelada métrica"
+    },
+    {
+      "code": "FOT",
+      "name": "pie"
+    },
+    {
+      "code": "STN",
+      "name": "tonelada corta"
+    },
+    {
+      "code": "GRO",
+      "name": "gruesa (144 unidades)"
+    },
+    {
+      "code": "SET",
+      "name": "conjunto/set"
+    },
+    {
+      "code": "DPR",
+      "name": "docena par (24 unidades)"
+    },
+    {
+      "code": "CLT",
+      "name": "centilitro"
+    }
+  ]
+}
