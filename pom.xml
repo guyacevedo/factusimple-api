@@ -217,10 +217,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.5</version>
                 <configuration>
-                    <systemPropertyVariables>
-                        <spring.profiles.active>dev</spring.profiles.active>
-                    </systemPropertyVariables>
+                    <environmentVariables>
+                        <SPRING_PROFILES_ACTIVE>dev</SPRING_PROFILES_ACTIVE>
+                    </environmentVariables>
                 </configuration>
             </plugin>
         </plugins>
