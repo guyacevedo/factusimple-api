@@ -38,7 +38,6 @@ jobs:
 
       - name: Build & Test
         env:
-          SPRING_PROFILES_ACTIVE: dev
           DB_HOST: localhost
           DB_PORT: 5432
           DB_DATABASE_NAME: ${{ secrets.DB_DATABASE_NAME }}

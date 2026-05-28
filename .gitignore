@@ -43,7 +43,6 @@ build/
 *.log
 
 *application-local.properties
-*application-test.properties
 .env
 *.pem
 *.crt
